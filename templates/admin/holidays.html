@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block title %}Официални Празници{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-3">
+  <h5 class="mb-0">
+    <i class="bi bi-calendar-heart text-danger"></i> Официални Празници
+  </h5>
+  <button class="btn btn-sm btn-primary ms-auto"
+          data-bs-toggle="modal" data-bs-target="#addModal">
+    <i class="bi bi-plus-circle"></i> Добави
+  </button>
+</div>
+
+<div class="card shadow-sm border-0">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0">
+      <thead class="table-dark">
+        <tr><th>Дата</th><th>Наименование</th><th>Ден</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for h in holidays %}
+        {% set parts = h.date.split('-') %}
+        {% set wdays = ['Понеделник','Вторник','Сряда','Четвъртък','Петък','Събота','Неделя'] %}
+        <tr>
+          <td><strong>{{ parts[2] }}.{{ parts[1] }}.{{ parts[0] }}</strong></td>
+          <td>{{ h.name }}</td>
+          <td class="text-muted small">
+            {# Calculate weekday in template - just show year/month/day #}
+            {{ h.date }}
+          </td>
+          <td>
+            <form method="POST" action="/admin/holidays/{{ h.id }}/delete"
+                  onsubmit="return confirm('Изтрий {{ h.name }}?')">
+              <button type="submit" class="btn btn-outline-danger btn-sm py-0">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# Модал за добавяне #}
+<div class="modal fade" id="addModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content shadow">
+      <div class="modal-header bg-primary text-white py-2">
+        <h6 class="modal-title"><i class="bi bi-calendar-plus"></i> Нов Празник</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="/admin/holidays/add">
+        <div class="modal-body">
+          <div class="mb-2">
+            <label class="form-label small">Дата</label>
+            <input type="date" name="date" class="form-control form-control-sm" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Наименование</label>
+            <input type="text" name="name" class="form-control form-control-sm"
+                   required placeholder="напр. Нова година">
+          </div>
+        </div>
+        <div class="modal-footer py-2">
+          <button type="button" class="btn btn-secondary btn-sm"
+                  data-bs-dismiss="modal">Отказ</button>
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-save"></i> Добави
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,138 @@
+/* ── Цветове на клетки ────────────────────────── */
+/* Диспечерска (1) */
+.cell-1  { background: #BDD7EE !important; color: #1a1a1a; }
+/* Нощна (2) */
+.cell-2  { background: #8EA9C1 !important; color: #fff; }
+/* Дневна (8) */
+.cell-8  { background: #E2EFDA !important; color: #1a1a1a; }
+/* Одобрена отпуска (0 + approved) – ЗЕЛЕНО */
+.cell-approved { background: #92D050 !important; color: #1a1a1a; font-weight: 600; }
+/* Планирана отпуска (0 + planned) – ОРАНЖЕВО */
+.cell-planned  { background: #FFC000 !important; color: #1a1a1a; font-weight: 600; }
+/* Болничен (Б) – ЖЪЛТО */
+.cell-sick     { background: #FFFF00 !important; color: #1a1a1a; font-weight: 600; }
+/* Неявяване (Н) */
+.cell-n        { background: #FF6B6B !important; color: #fff; }
+/* Компенсация (П) */
+.cell-p        { background: #D9D9D9 !important; color: #1a1a1a; }
+/* Почивен ден – уикенд */
+.cell-weekend-bg { background: #FFE9E9 !important; }
+
+/* ── Хедър на таблицата – уикенди ────────────── */
+.th-weekend { background: #c0392b !important; color: #fff !important; }
+
+/* ── Обща таблица за графика ─────────────────── */
+.schedule-wrapper {
+  overflow-x: auto;
+  max-height: 78vh;
+  overflow-y: auto;
+}
+
+.schedule-table {
+  min-width: 900px;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.schedule-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.schedule-table .sticky-no {
+  position: sticky;
+  left: 0;
+  z-index: 6;
+  min-width: 45px;
+  background: #212529;
+  color: #fff;
+}
+.schedule-table thead .sticky-no {
+  z-index: 10;
+}
+
+.schedule-table .sticky-name {
+  position: sticky;
+  left: 45px;
+  z-index: 6;
+  min-width: 155px;
+  max-width: 180px;
+  background: #212529;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.schedule-table thead .sticky-name {
+  z-index: 10;
+}
+
+.schedule-table tbody .sticky-no {
+  background: #fff;
+  color: #6c757d;
+}
+.schedule-table tbody .sticky-name {
+  background: #f8f9fa;
+  color: #212529;
+}
+
+.schedule-table .col-sm   { min-width: 30px; max-width: 32px; }
+.schedule-table .col-day  { min-width: 28px; max-width: 32px; width: 30px; padding: 1px 1px; }
+.schedule-table .col-hours { min-width: 42px; max-width: 55px; }
+
+.sched-cell {
+  text-align: center;
+  padding: 2px 1px !important;
+  font-weight: 500;
+  vertical-align: middle;
+  line-height: 1.1;
+}
+
+.sched-editable {
+  cursor: pointer;
+  transition: filter .15s;
+}
+.sched-editable:hover {
+  filter: brightness(0.88);
+  outline: 2px solid #0d6efd;
+  outline-offset: -2px;
+}
+.sched-editable.cell-active {
+  outline: 3px solid #0d6efd !important;
+  outline-offset: -2px;
+  box-shadow: 0 0 0 3px rgba(13,110,253,.35);
+  z-index: 1;
+  position: relative;
+}
+
+.day-name { font-size: 0.62rem; color: #adb5bd; }
+
+/* ── Смяна цветове (значка) ───────────────────── */
+.sm-А { color: #0d6efd; }
+.sm-Б { color: #198754; }
+.sm-В { color: #dc3545; }
+.sm-Г { color: #6f42c1; }
+.sm-Р { color: #fd7e14; }
+.sm-Д { color: #0dcaf0; }
+.sm-Е { color: #e83e8c; }
+
+/* ── Легенда ─────────────────────────────────── */
+.legend-bar { font-size: 0.72rem; }
+
+.legend-item {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid #dee2e6;
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+/* ── Часова клетка под нормата ───────────────── */
+.hours-danger-bg {
+  background-color: #ffd6d6 !important;
+}
+
+/* ── Навигация по месеци ──────────────────────── */
+.month-nav .btn { font-size: 0.85rem; }

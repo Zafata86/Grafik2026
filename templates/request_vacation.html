@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% block title %}Заявка Отпуска{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-7 col-lg-5">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-success text-white">
+        <i class="bi bi-calendar-plus"></i> Заявка за Отпуска
+      </div>
+      <div class="card-body p-4">
+        <div class="alert alert-info py-2 mb-3 small">
+          <i class="bi bi-info-circle"></i>
+          Оставащи дни: <strong>{{ user.vacation_days_remaining }}</strong>
+          от {{ user.vacation_days_total }} общо
+          <br>
+          <i class="bi bi-exclamation-triangle text-warning"></i>
+          Събота, неделя и официални празници <strong>не се броят</strong> и не могат да се избират.
+        </div>
+
+        <form method="POST" id="vacForm">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Начална дата</label>
+            <input type="text" name="date_from" id="dateFrom" class="form-control"
+                   placeholder="Изберете дата..." required autocomplete="off">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Крайна дата</label>
+            <input type="text" name="date_to" id="dateTo" class="form-control"
+                   placeholder="Изберете дата..." required autocomplete="off">
+          </div>
+
+          <div class="mb-3 p-2 rounded" style="background:#f8f9fa">
+            <div class="d-flex justify-content-between small text-muted mb-1">
+              <span>Работни дни в периода:</span>
+              <strong id="daysCount" class="text-primary fs-5">0</strong>
+            </div>
+            <div id="dayBreakdown" class="small text-muted"></div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Бележка (по желание)</label>
+            <textarea name="comment" class="form-control" rows="2"
+                      placeholder="Допълнителна информация..."></textarea>
+          </div>
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-success" id="submitBtn">
+              <i class="bi bi-send"></i> Изпрати Заявка
+            </button>
+            <a href="/my-schedule" class="btn btn-outline-secondary">Отказ</a>
+          </div>
+        </form>
+      </div>
+      <div class="card-footer text-muted small text-center">
+        Заявката ще бъде прегледана от началника.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/bg.js"></script>
+<script>
+const HOLIDAY_DATES = {{ holiday_dates | tojson }};
+const vacRemaining = {{ user.vacation_days_remaining }};
+
+const disableRules = [
+  function(d) { return d.getDay() === 0 || d.getDay() === 6; }, // събота/неделя
+  ...HOLIDAY_DATES
+];
+
+let fpFrom, fpTo;
+
+function countWorkingDays(from, to) {
+  let count = 0, skipped = [];
+  let cur = new Date(from);
+  while (cur <= to) {
+    const iso = cur.toISOString().split('T')[0];
+    const wd  = cur.getDay();
+    const isHol = HOLIDAY_DATES.includes(iso);
+    const isWkd = wd === 0 || wd === 6;
+    if (!isWkd && !isHol) {
+      count++;
+    } else {
+      const day = cur.getDate() + '.' + String(cur.getMonth()+1).padStart(2,'0');
+      skipped.push(day + (isHol ? ' (празник)' : ' (почивен)'));
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+  return { count, skipped };
+}
+
+function updateCount() {
+  const from = fpFrom && fpFrom.selectedDates[0];
+  const to   = fpTo   && fpTo.selectedDates[0];
+  const cnt  = document.getElementById('daysCount');
+  const brkd = document.getElementById('dayBreakdown');
+  const btn  = document.getElementById('submitBtn');
+
+  if (from && to && from <= to) {
+    const { count, skipped } = countWorkingDays(from, to);
+    cnt.textContent = count;
+    cnt.className = count === 0 ? 'text-danger fs-5' :
+                    count > vacRemaining ? 'text-danger fs-5 fw-bold' : 'text-primary fs-5';
+    if (skipped.length) {
+      brkd.innerHTML = '<i class="bi bi-skip-forward"></i> Пропуснати: ' + skipped.join(', ');
+    } else {
+      brkd.innerHTML = '';
+    }
+    if (count > vacRemaining) {
+      brkd.innerHTML += `<br><span class="text-danger"><i class="bi bi-exclamation-triangle"></i> Надвишавате оставащите дни (${vacRemaining})!</span>`;
+    }
+    btn.disabled = count === 0 || count > vacRemaining;
+  } else {
+    cnt.textContent = '0';
+    brkd.innerHTML = '';
+  }
+}
+
+fpFrom = flatpickr('#dateFrom', {
+  locale: 'bg', dateFormat: 'Y-m-d',
+  disable: disableRules, minDate: 'today',
+  onChange: updateCount,
+});
+fpTo = flatpickr('#dateTo', {
+  locale: 'bg', dateFormat: 'Y-m-d',
+  disable: disableRules, minDate: 'today',
+  onChange: updateCount,
+});
+</script>
+{% endblock %}

@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% block title %}Заявки за Отпуска{% endblock %}
+
+{% block content %}
+<h5 class="mb-3">
+  <i class="bi bi-check2-circle text-success"></i> Заявки за Отпуска
+  {% set pending = requests|selectattr('status', 'eq', 'pending')|list %}
+  {% if pending %}
+  <span class="badge bg-danger">{{ pending|length }} чакат</span>
+  {% endif %}
+</h5>
+
+{% if requests %}
+<div class="card shadow-sm border-0">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0 align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>Служител</th>
+          <th>Таб №</th>
+          <th>От</th>
+          <th>До</th>
+          <th>Дни</th>
+          <th>Статус</th>
+          <th>Заявено</th>
+          <th>Одобрено от</th>
+          <th>Бележка</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in requests %}
+        <tr class="
+          {% if r.status == 'pending' %}table-warning
+          {% elif r.status == 'approved' %}table-success
+          {% elif r.status == 'cancelled' %}table-secondary
+          {% else %}table-light{% endif %}">
+          <td class="fw-semibold">{{ r.emp_name }}</td>
+          <td class="text-muted small">{{ r.tab_number }}</td>
+          <td>{{ r.date_from }}</td>
+          <td>{{ r.date_to }}</td>
+          <td class="text-center"><strong>{{ r.days_count }}</strong></td>
+          <td>
+            {% if r.status == 'pending' %}
+              <span class="badge bg-warning text-dark"><i class="bi bi-hourglass"></i> Чака</span>
+            {% elif r.status == 'approved' %}
+              <span class="badge bg-success"><i class="bi bi-check"></i> Одобрена</span>
+            {% elif r.status == 'cancelled' %}
+              <span class="badge bg-secondary"><i class="bi bi-slash-circle"></i> Анулирана</span>
+            {% else %}
+              <span class="badge bg-danger"><i class="bi bi-x"></i> Отхвърлена</span>
+            {% endif %}
+          </td>
+          <td class="small text-muted">
+            {{ r.requested_at[:16].replace('T',' ') if r.requested_at else '–' }}
+          </td>
+          <td class="small">{{ r.appr_name or '–' }}</td>
+          <td class="small text-muted">{{ r.comment or '–' }}</td>
+          <td>
+            <div class="d-flex gap-1 flex-wrap">
+              {% if r.status == 'pending' %}
+              {# Одобри #}
+              <form method="POST" action="/admin/vacations/{{ r.id }}/approve">
+                <button type="submit" class="btn btn-success btn-sm py-0" title="Одобри">
+                  <i class="bi bi-check-lg"></i>
+                </button>
+              </form>
+              {# Отхвърли #}
+              <form method="POST" action="/admin/vacations/{{ r.id }}/reject">
+                <button type="submit" class="btn btn-danger btn-sm py-0" title="Отхвърли">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              </form>
+              {# Промени дати #}
+              <button class="btn btn-warning btn-sm py-0" title="Промени дати"
+                      data-bs-toggle="modal"
+                      data-bs-target="#modifyModal{{ r.id }}">
+                <i class="bi bi-calendar-range"></i>
+              </button>
+              {% endif %}
+              {% if r.status in ('pending', 'approved') %}
+              {# Анулирай #}
+              <form method="POST" action="/vacation/{{ r.id }}/cancel"
+                    onsubmit="return confirm('Анулирай отпуската на {{ r.emp_name }}?')">
+                <button type="submit" class="btn btn-outline-danger btn-sm py-0" title="Анулирай">
+                  <i class="bi bi-slash-circle"></i>
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+
+        {# Модал за промяна на дати #}
+        {% if r.status == 'pending' %}
+        <div class="modal fade" id="modifyModal{{ r.id }}" tabindex="-1">
+          <div class="modal-dialog modal-sm">
+            <div class="modal-content shadow">
+              <div class="modal-header bg-warning py-2">
+                <h6 class="modal-title">
+                  <i class="bi bi-calendar-range"></i> Промени дати
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <form method="POST" action="/admin/vacation/{{ r.id }}/modify">
+                <div class="modal-body">
+                  <p class="small mb-2 text-muted">{{ r.emp_name }}</p>
+                  <div class="mb-2">
+                    <label class="form-label small">От</label>
+                    <input type="date" name="date_from" class="form-control form-control-sm"
+                           value="{{ r.date_from }}" required>
+                  </div>
+                  <div class="mb-2">
+                    <label class="form-label small">До</label>
+                    <input type="date" name="date_to" class="form-control form-control-sm"
+                           value="{{ r.date_to }}" required>
+                  </div>
+                  <div class="alert alert-info py-1 small mb-0">
+                    <i class="bi bi-info-circle"></i>
+                    Събота, неделя и празници се изключват автоматично.
+                  </div>
+                </div>
+                <div class="modal-footer py-2">
+                  <button type="button" class="btn btn-secondary btn-sm"
+                          data-bs-dismiss="modal">Отказ</button>
+                  <button type="submit" class="btn btn-warning btn-sm">
+                    <i class="bi bi-save"></i> Запази
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-info">
+  <i class="bi bi-info-circle"></i> Няма заявки за отпуска.
+</div>
+{% endif %}
+{% endblock %}

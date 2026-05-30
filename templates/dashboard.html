@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% block title %}График {{ month_name }} {{ year }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <h5 class="mb-0 me-2">
+    <i class="bi bi-table text-primary"></i>
+    График &nbsp;–&nbsp; <strong>{{ month_name }} {{ year }}</strong>
+  </h5>
+  <a href="/dashboard/{{ py }}/{{ pm }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-chevron-left"></i> {{ MONTH_NAMES[pm] }}
+  </a>
+  <a href="/dashboard/{{ ny }}/{{ nm }}" class="btn btn-sm btn-outline-secondary">
+    {{ MONTH_NAMES[nm] }} <i class="bi bi-chevron-right"></i>
+  </a>
+  {% if session.role == 'admin' %}
+  <a href="/admin/schedule/{{ year }}/{{ month }}" class="btn btn-sm btn-warning ms-auto">
+    <i class="bi bi-pencil-square"></i> Редактирай
+  </a>
+  {% endif %}
+</div>
+
+{# Легенда #}
+<div class="legend-bar mb-3 d-flex flex-wrap gap-2">
+  <span class="legend-item cell-1">1 – Диспечерска</span>
+  <span class="legend-item cell-2">2 – Нощна</span>
+  <span class="legend-item cell-8">8 – Дневна</span>
+  <span class="legend-item cell-approved">0 – Отпуска</span>
+  <span class="legend-item cell-planned">0 – Планирана отпуска</span>
+  <span class="legend-item cell-sick">Б – Болничен</span>
+  <span class="legend-item cell-n">Н – Неявяване</span>
+  <span class="legend-item cell-p">П – Компенсация</span>
+  <span class="legend-item cell-weekend-bg">Почивен ден</span>
+</div>
+
+{% if settings %}
+<div class="alert alert-info py-1 mb-2 small">
+  <i class="bi bi-clock"></i>
+  Норма за месеца: А,Б,В,Г → <strong>{{ settings.hours_abvg }} ч.</strong> &nbsp;|&nbsp;
+  Р,Д,Е → <strong>{{ settings.hours_rde }} ч.</strong>
+</div>
+{% endif %}
+
+<div class="table-responsive schedule-wrapper">
+  <table class="table table-bordered table-sm schedule-table mb-0">
+    <thead class="table-dark">
+      <tr>
+        <th class="sticky-no">№</th>
+        <th class="sticky-name">Три Имена</th>
+        <th class="col-sm text-center">См</th>
+        {% for day, wday in day_info %}
+        <th class="col-day text-center {% if wday >= 5 %}th-weekend{% endif %}">
+          <div>{{ day }}</div>
+          <div class="day-name">{{ DAY_NAMES[wday] }}</div>
+        </th>
+        {% endfor %}
+        <th class="col-hours text-center">Ч</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for emp in employees %}
+      {% set emp_sched = schedule.get(emp.id, {}) %}
+      {% set th = target_hours(emp.smyana, settings) %}
+      {% set ah = hours.get(emp.id, 0) %}
+      <tr>
+        <td class="sticky-no text-center small text-muted">{{ emp.tab_number }}</td>
+        <td class="sticky-name">{{ emp.name }}</td>
+        <td class="text-center fw-bold sm-{{ emp.smyana|upper }}">{{ emp.smyana|upper }}</td>
+        {% for day, wday in day_info %}
+        {% set e = emp_sched.get(day) %}
+        {% set code = (e.code if e else '') or '' %}
+        {% set status = (e.leave_status if e else '') or 'normal' %}
+        {% if code == '0' and status == 'planned' %}
+          <td class="sched-cell cell-planned" title="Планирана отпуска">0</td>
+        {% elif code == '0' %}
+          <td class="sched-cell cell-approved" title="Отпуска">0</td>
+        {% elif code == 'Б' %}
+          <td class="sched-cell cell-sick" title="Болничен">Б</td>
+        {% elif code == '1' %}
+          <td class="sched-cell cell-1" title="Диспечерска">1</td>
+        {% elif code == '2' %}
+          <td class="sched-cell cell-2" title="Нощна">2</td>
+        {% elif code == '8' %}
+          <td class="sched-cell cell-8" title="Дневна">8</td>
+        {% elif code == 'Н' %}
+          <td class="sched-cell cell-n" title="Неявяване">Н</td>
+        {% elif code == 'П' %}
+          <td class="sched-cell cell-p" title="Компенсация">П</td>
+        {% elif wday >= 5 %}
+          <td class="sched-cell cell-weekend-bg"></td>
+        {% else %}
+          <td class="sched-cell"></td>
+        {% endif %}
+        {% endfor %}
+        <td class="text-center fw-bold col-hours
+          {% if th and ah < th %}text-danger{% elif th and ah >= th %}text-success{% endif %}">
+          {{ ah }}{% if th %}<br><small class="fw-normal text-muted">/{{ th }}</small>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

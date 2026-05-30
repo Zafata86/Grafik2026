@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+{% block title %}Служители{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-3">
+  <h5 class="mb-0"><i class="bi bi-people-fill text-info"></i> Служители</h5>
+  <button class="btn btn-sm btn-primary ms-auto" data-bs-toggle="modal" data-bs-target="#addModal">
+    <i class="bi bi-person-plus"></i> Добави
+  </button>
+</div>
+
+<div class="card shadow-sm border-0">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0">
+      <thead class="table-dark">
+        <tr>
+          <th>Таб №</th>
+          <th>Три имена</th>
+          <th class="text-center">Смяна</th>
+          <th class="text-center">Роля</th>
+          <th class="text-center">Отпуска (общо)</th>
+          <th class="text-center">Отпуска (ост.)</th>
+          <th class="text-center">Потребител</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for emp in employees %}
+        <tr>
+          <td class="text-muted small">{{ emp.tab_number }}</td>
+          <td class="fw-semibold">{{ emp.name }}</td>
+          <td class="text-center">
+            <span class="badge bg-secondary sm-{{ emp.smyana|upper }}">{{ emp.smyana|upper }}</span>
+          </td>
+          <td class="text-center">
+            {% if emp.role == 'admin' %}
+              <span class="badge bg-danger">Админ</span>
+            {% else %}
+              <span class="badge bg-secondary">Служител</span>
+            {% endif %}
+          </td>
+          <td class="text-center">{{ emp.vacation_days_total }}</td>
+          <td class="text-center {% if emp.vacation_days_remaining <= 5 %}text-danger fw-bold{% endif %}">
+            {{ emp.vacation_days_remaining }}
+          </td>
+          <td class="text-center small text-muted">{{ emp.username }}</td>
+          <td>
+            <button class="btn btn-outline-secondary btn-sm"
+                    data-bs-toggle="modal" data-bs-target="#editModal{{ emp.id }}">
+              <i class="bi bi-pencil"></i>
+            </button>
+          </td>
+        </tr>
+
+        {# Модал за редакция #}
+        <div class="modal fade" id="editModal{{ emp.id }}" tabindex="-1">
+          <div class="modal-dialog">
+            <div class="modal-content shadow">
+              <div class="modal-header bg-secondary text-white py-2">
+                <h6 class="modal-title">Редакция: {{ emp.name }}</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+              </div>
+              <form method="POST" action="/admin/employees/{{ emp.id }}/edit">
+                <div class="modal-body">
+                  <div class="row g-2">
+                    <div class="col-8">
+                      <label class="form-label small">Три Имена</label>
+                      <input type="text" name="name" class="form-control form-control-sm"
+                             value="{{ emp.name }}" required>
+                    </div>
+                    <div class="col-4">
+                      <label class="form-label small">Смяна</label>
+                      <select name="smyana" class="form-select form-select-sm">
+                        {% for s in SMYANA_OPTIONS %}
+                        <option value="{{ s }}" {% if emp.smyana|upper == s %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div class="col-6">
+                      <label class="form-label small">Отпуска (общо дни)</label>
+                      <input type="number" name="vacation_days_total" class="form-control form-control-sm"
+                             value="{{ emp.vacation_days_total }}" min="0" max="365">
+                    </div>
+                    <div class="col-6">
+                      <label class="form-label small">Отпуска (оставащи)</label>
+                      <input type="number" name="vacation_days_remaining" class="form-control form-control-sm"
+                             value="{{ emp.vacation_days_remaining }}" min="0" max="365">
+                    </div>
+                    <div class="col-6">
+                      <label class="form-label small">Роля</label>
+                      <select name="role" class="form-select form-select-sm">
+                        <option value="employee" {% if emp.role == 'employee' %}selected{% endif %}>Служител</option>
+                        <option value="admin" {% if emp.role == 'admin' %}selected{% endif %}>Администратор</option>
+                      </select>
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label small">Нова парола (оставете празно за без промяна)</label>
+                      <input type="password" name="password" class="form-control form-control-sm"
+                             placeholder="Нова парола...">
+                    </div>
+                  </div>
+                </div>
+                <div class="modal-footer py-2">
+                  <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Отказ</button>
+                  <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-save"></i> Запази
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# Модал за добавяне #}
+<div class="modal fade" id="addModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content shadow">
+      <div class="modal-header bg-primary text-white py-2">
+        <h6 class="modal-title"><i class="bi bi-person-plus"></i> Нов Служител</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="/admin/employees/add">
+        <div class="modal-body">
+          <div class="row g-2">
+            <div class="col-4">
+              <label class="form-label small">Табелен №</label>
+              <input type="text" name="tab_number" class="form-control form-control-sm" required>
+            </div>
+            <div class="col-8">
+              <label class="form-label small">Три Имена</label>
+              <input type="text" name="name" class="form-control form-control-sm" required>
+            </div>
+            <div class="col-4">
+              <label class="form-label small">Смяна</label>
+              <select name="smyana" class="form-select form-select-sm">
+                {% for s in SMYANA_OPTIONS %}
+                <option value="{{ s }}">{{ s }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-4">
+              <label class="form-label small">Роля</label>
+              <select name="role" class="form-select form-select-sm">
+                <option value="employee">Служител</option>
+                <option value="admin">Администратор</option>
+              </select>
+            </div>
+            <div class="col-4">
+              <label class="form-label small">Дни отпуска</label>
+              <input type="number" name="vacation_days_total" class="form-control form-control-sm"
+                     value="20" min="0">
+            </div>
+            <div class="col-6">
+              <label class="form-label small">Потребителско Име</label>
+              <input type="text" name="username" class="form-control form-control-sm" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label small">Парола</label>
+              <input type="password" name="password" class="form-control form-control-sm" required>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer py-2">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Отказ</button>
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-person-check"></i> Добави
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

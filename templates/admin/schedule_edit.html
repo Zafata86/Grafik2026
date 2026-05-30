@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{% block title %}Редакция – {{ month_name }} {{ year }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <h5 class="mb-0">
+    <i class="bi bi-pencil-square text-warning"></i>
+    Редакция на График &nbsp;–&nbsp; <strong>{{ month_name }} {{ year }}</strong>
+  </h5>
+  <a href="/admin/schedule/{{ py }}/{{ pm }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-chevron-left"></i> {{ MONTH_NAMES[pm] }}
+  </a>
+  <a href="/admin/schedule/{{ ny }}/{{ nm }}" class="btn btn-sm btn-outline-secondary">
+    {{ MONTH_NAMES[nm] }} <i class="bi bi-chevron-right"></i>
+  </a>
+  <a href="/dashboard/{{ year }}/{{ month }}" class="btn btn-sm btn-outline-primary ms-auto">
+    <i class="bi bi-eye"></i> Преглед
+  </a>
+</div>
+
+{# Форма за часове #}
+<div class="card shadow-sm border-0 mb-3">
+  <div class="card-header bg-light fw-semibold py-2">
+    <i class="bi bi-clock"></i> Норма часове за месеца
+  </div>
+  <div class="card-body py-2">
+    <form method="POST" action="/admin/schedule/hours" class="row g-2 align-items-end">
+      <input type="hidden" name="year" value="{{ year }}">
+      <input type="hidden" name="month" value="{{ month }}">
+      <div class="col-auto">
+        <label class="form-label small mb-1">А, Б, В, Г</label>
+        <div class="input-group input-group-sm">
+          <input type="number" name="hours_abvg" class="form-control"
+                 value="{{ settings.hours_abvg if settings else 160 }}" min="1" max="400" style="width:80px">
+          <span class="input-group-text">ч.</span>
+        </div>
+      </div>
+      <div class="col-auto">
+        <label class="form-label small mb-1">Р, Д, Е</label>
+        <div class="input-group input-group-sm">
+          <input type="number" name="hours_rde" class="form-control"
+                 value="{{ settings.hours_rde if settings else 160 }}" min="1" max="400" style="width:80px">
+          <span class="input-group-text">ч.</span>
+        </div>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-sm btn-primary">
+          <i class="bi bi-save"></i> Запази
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# Легенда #}
+<div class="legend-bar mb-2 d-flex flex-wrap gap-1">
+  <span class="legend-item cell-1">1–Дисп.</span>
+  <span class="legend-item cell-2">2–Нощна</span>
+  <span class="legend-item cell-8">8–Дневна</span>
+  <span class="legend-item cell-approved">0–Отпуска</span>
+  <span class="legend-item cell-planned">0–Планирана</span>
+  <span class="legend-item cell-sick">Б–Болничен</span>
+  <span class="legend-item cell-n">Н–Неявяване</span>
+  <span class="legend-item cell-p">П–Компенсация</span>
+  <span class="text-muted small ms-2"><i class="bi bi-hand-index"></i> Кликни върху клетка за редакция</span>
+</div>
+
+<div class="table-responsive schedule-wrapper">
+  <table class="table table-bordered table-sm schedule-table mb-0">
+    <thead class="table-dark">
+      <tr>
+        <th class="sticky-no">№</th>
+        <th class="sticky-name">Три Имена</th>
+        <th style="min-width:52px"></th>
+        <th class="col-sm text-center">См</th>
+        {% for day, wday in day_info %}
+        <th class="col-day text-center {% if wday >= 5 %}th-weekend{% endif %}">
+          <div>{{ day }}</div>
+          <div class="day-name">{{ DAY_NAMES[wday] }}</div>
+        </th>
+        {% endfor %}
+        <th class="col-hours text-center">Ч</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for emp in employees %}
+      {% set emp_sched = schedule.get(emp.id, {}) %}
+      {% set th = target_hours(emp.smyana, settings) %}
+      {% set ah = hours.get(emp.id, 0) %}
+      <tr data-emp-id="{{ emp.id }}">
+        <td class="sticky-no text-center small text-muted">{{ emp.tab_number }}</td>
+        <td class="sticky-name small">{{ emp.name }}</td>
+        <td class="text-center" style="white-space:nowrap">
+          <button class="btn btn-outline-secondary btn-copy-row p-0 px-1"
+                  style="font-size:0.7rem" title="Копирай ред"
+                  data-emp-name="{{ emp.name.split()[0] }}">
+            <i class="bi bi-copy"></i>
+          </button>
+          <button class="btn btn-outline-success btn-paste-row p-0 px-1 d-none"
+                  style="font-size:0.7rem" title="Постави"
+                  data-year="{{ year }}" data-month="{{ month }}">
+            <i class="bi bi-clipboard-check"></i>
+          </button>
+        </td>
+        <td class="text-center fw-bold sm-{{ emp.smyana|upper }}">{{ emp.smyana|upper }}</td>
+        {% for day, wday in day_info %}
+        {% set e = emp_sched.get(day) %}
+        {% set code = (e.code if e else '') or '' %}
+        {% set status = (e.leave_status if e else '') or 'normal' %}
+        {% if code == '0' and status == 'planned' %}
+          {% set cls = 'cell-planned' %}
+        {% elif code == '0' %}
+          {% set cls = 'cell-approved' %}
+        {% elif code == 'Б' %}
+          {% set cls = 'cell-sick' %}
+        {% elif code == '1' %}
+          {% set cls = 'cell-1' %}
+        {% elif code == '2' %}
+          {% set cls = 'cell-2' %}
+        {% elif code == '8' %}
+          {% set cls = 'cell-8' %}
+        {% elif code == 'Н' %}
+          {% set cls = 'cell-n' %}
+        {% elif code == 'П' %}
+          {% set cls = 'cell-p' %}
+        {% elif wday >= 5 %}
+          {% set cls = 'cell-weekend-bg' %}
+        {% else %}
+          {% set cls = '' %}
+        {% endif %}
+        <td class="sched-cell sched-editable {{ cls }}"
+            data-emp-id="{{ emp.id }}"
+            data-emp-name="{{ emp.name }}"
+            data-year="{{ year }}" data-month="{{ month }}" data-day="{{ day }}"
+            data-code="{{ code }}"
+            data-weekend="{{ 'true' if wday >= 5 else 'false' }}">{{ code }}</td>
+        {% endfor %}
+        <td class="text-center fw-bold col-hours hours-cell
+          {% if th and ah < th %}text-danger hours-danger-bg{% elif th and ah >= th %}text-success{% endif %}"
+            data-target="{{ th or 0 }}"
+            data-emp-name="{{ emp.name.split()[0] }}"
+            data-smyana="{{ emp.smyana|upper }}">
+          {{ ah }}{% if th %}<br><small class="fw-normal text-muted">/{{ th }}</small>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{# Клавишни пояснения #}
+<div class="mt-2 mb-1 small text-muted">
+  <i class="bi bi-keyboard"></i>
+  Клавиши: <kbd>1</kbd><kbd>2</kbd><kbd>8</kbd><kbd>0</kbd><kbd>Б</kbd><kbd>Н</kbd><kbd>П</kbd> – директен запис &nbsp;|&nbsp;
+  <kbd>Del</kbd> – изчисти &nbsp;|&nbsp;
+  <kbd>↑↓←→</kbd> – навигация &nbsp;|&nbsp;
+  <kbd>Enter</kbd> или двойно кликване – меню
+</div>
+
+{# Toast контейнер #}
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999">
+  <div id="copyToast" class="toast align-items-center text-bg-success border-0 mb-2" role="alert">
+    <div class="d-flex">
+      <div class="toast-body">
+        <i class="bi bi-copy"></i> Ред на <strong id="copyToastName"></strong> е копиран.
+        Кликни <i class="bi bi-clipboard-check"></i> на друг ред.
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+  <div id="hoursToast" class="toast align-items-center text-bg-danger border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <strong id="hoursToastName"></strong> — <span id="hoursToastMsg"></span>
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+{# Модален прозорец за редакция #}
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content shadow">
+      <div class="modal-header bg-warning py-2">
+        <h6 class="modal-title mb-0"><i class="bi bi-pencil"></i> Редакция</h6>
+        <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2 small">
+          <strong id="modal-name"></strong><br>
+          <span class="text-muted" id="modal-date"></span>
+        </div>
+        <label class="form-label fw-semibold">Код / Вид работа</label>
+        <select id="modal-code" class="form-select form-select-sm">
+          <option value="">— Почивен ден —</option>
+          <option value="1">1 – Диспечерска смяна</option>
+          <option value="2">2 – Нощна смяна</option>
+          <option value="8">8 – Дневна смяна</option>
+          <option value="0">0 – Отпуска (одобрена)</option>
+          <option value="Б">Б – Болничен</option>
+          <option value="Н">Н – Неявяване</option>
+          <option value="П">П – Компенсация</option>
+        </select>
+        <div id="modal-saving" class="text-center mt-2 d-none">
+          <div class="spinner-border spinner-border-sm text-primary"></div>
+          <span class="ms-2 small">Запазване...</span>
+        </div>
+      </div>
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Отказ</button>
+        <button type="button" class="btn btn-warning btn-sm" id="modal-save">
+          <i class="bi bi-save"></i> Запази
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/app.js"></script>
+{% endblock %}

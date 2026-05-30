@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}График – Автоматизация{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="/static/style.css" rel="stylesheet">
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary py-1">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold" href="/">
+      <i class="bi bi-calendar3-week"></i> График – Автоматизация
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nb">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="nb">
+      {% if session.user_id %}
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="/dashboard"><i class="bi bi-table"></i> Пълен График</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/my-schedule"><i class="bi bi-person-lines-fill"></i> Моят График</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/request-vacation"><i class="bi bi-calendar-check"></i> Заявка Отпуска</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/settings"><i class="bi bi-bell"></i> Напомняния</a>
+        </li>
+        {% if session.role == 'admin' %}
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+            <i class="bi bi-gear-fill"></i> Администрация
+            {% if pending_count > 0 %}
+            <span class="badge bg-danger rounded-pill">{{ pending_count }}</span>
+            {% endif %}
+          </a>
+          <ul class="dropdown-menu shadow">
+            <li>
+              <a class="dropdown-item" href="/admin/schedule">
+                <i class="bi bi-pencil-square text-primary"></i> Редактиране на График
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="/admin/vacations">
+                <i class="bi bi-check2-circle text-success"></i> Заявки Отпуска
+                {% if pending_count > 0 %}
+                <span class="badge bg-danger">{{ pending_count }}</span>
+                {% endif %}
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="/admin/employees">
+                <i class="bi bi-people-fill text-info"></i> Служители
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="/admin/holidays">
+                <i class="bi bi-calendar-heart text-danger"></i> Официални Празници
+              </a>
+            </li>
+          </ul>
+        </li>
+        {% endif %}
+      </ul>
+      <ul class="navbar-nav ms-auto align-items-center">
+        <li class="nav-item">
+          <a class="nav-link" href="/change-password">
+            <i class="bi bi-person-circle"></i>
+            <span class="d-none d-md-inline">{{ session.name.split()[0] }}</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/logout"><i class="bi bi-box-arrow-right"></i> Изход</a>
+        </li>
+      </ul>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid py-3">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }} alert-dismissible fade show py-2" role="alert">
+      {{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

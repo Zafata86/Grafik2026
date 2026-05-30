@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% block title %}Настройки – Напомняния{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+
+  {# Лична настройка за напомняния #}
+  <div class="col-md-6">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-primary text-white">
+        <i class="bi bi-bell"></i> Напомняния в Календара
+        <small class="ms-2 opacity-75">({{ user.name.split()[0] }})</small>
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">
+          Изтеглете <code>.ics</code> файл и го импортирайте в
+          <strong>Google Calendar / Apple Calendar</strong> на телефона.
+          Автоматично ще получавате напомняния според вашия график.
+        </p>
+        <form method="POST">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">
+              <i class="bi bi-clock-history"></i> Напомни преди смяна (минути)
+            </label>
+            <select name="notify_minutes_before" class="form-select">
+              {% for m in [15, 30, 60, 90, 120] %}
+              <option value="{{ m }}"
+                {% if (user.notify_minutes_before or '60')|string == m|string %}selected{% endif %}>
+                {{ m }} минути преди
+              </option>
+              {% endfor %}
+              <option value="0"
+                {% if (user.notify_minutes_before or '60')|string == '0' %}selected{% endif %}>
+                Без напомняне преди смяна
+              </option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" id="dayBefore"
+                     name="notify_day_before" value="1"
+                     {% if (user.notify_day_before or '1') == '1' %}checked{% endif %}>
+              <label class="form-check-label fw-semibold" for="dayBefore">
+                <i class="bi bi-calendar-event"></i> Напомни деня преди работа
+              </label>
+            </div>
+            <div class="input-group input-group-sm" style="max-width:180px">
+              <span class="input-group-text">в</span>
+              <input type="time" name="notify_day_before_time" class="form-control"
+                     value="{{ user.notify_day_before_time or '19:00' }}">
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="punchCard"
+                     name="notify_punch_card" value="1"
+                     {% if (user.notify_punch_card or '1') == '1' %}checked{% endif %}>
+              <label class="form-check-label fw-semibold" for="punchCard">
+                <i class="bi bi-credit-card-2-front"></i>
+                Напомняне „Удари карта!" в началото на смяната
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-save"></i> Запази Настройки
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  {# Изтегляне на ICS #}
+  <div class="col-md-6">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-success text-white">
+        <i class="bi bi-calendar-arrow-down"></i> Изтегляне на Личен Календар (.ics)
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">
+          Изберете месец и изтеглете файла. После го отворете на телефона –
+          ще се добави в Google/Apple Calendar с всички напомняния.
+        </p>
+        <div class="d-flex flex-wrap gap-2">
+          {% set today_year = 2026 %}
+          {% for m in range(1, 13) %}
+          <a href="/my-schedule/export/{{ today_year }}/{{ m }}.ics"
+             class="btn btn-sm btn-outline-success">
+            <i class="bi bi-download"></i> {{ MONTH_NAMES[m] }}
+          </a>
+          {% endfor %}
+        </div>
+        <hr>
+        <div class="alert alert-info py-2 small mb-0">
+          <strong>Как да импортирате на телефона:</strong><br>
+          📱 <strong>Android:</strong> Отворете файла → Google Calendar го добавя автоматично<br>
+          🍎 <strong>iPhone:</strong> Отворете файла → „Добави всички" в Calendar
+        </div>
+      </div>
+    </div>
+
+    {% if session.role == 'admin' %}
+    {# Настройки за времената на смените – само за администратори #}
+    <div class="card shadow-sm border-0 mt-3">
+      <div class="card-header bg-warning">
+        <i class="bi bi-clock-fill"></i> Времена на Смените (администратор)
+      </div>
+      <div class="card-body">
+        <form method="POST" action="/admin/shift-times">
+          <div class="row g-2">
+            {% for code, label in [('1','Диспечерска (1)'), ('2','Нощна (2)'), ('8','Дневна (8)')] %}
+            <div class="col-12">
+              <label class="form-label small fw-semibold mb-1">{{ label }}</label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">Начало</span>
+                <input type="time" name="shift_{{ code }}_start" class="form-control"
+                       value="{{ shift_times.get('shift_' ~ code ~ '_start', '08:00') }}">
+                <span class="input-group-text">Продължителност (ч.)</span>
+                <input type="number" name="shift_{{ code }}_hours" class="form-control"
+                       value="{{ shift_times.get('shift_' ~ code ~ '_hours', '8') }}"
+                       min="1" max="24" style="max-width:70px">
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          <button type="submit" class="btn btn-sm btn-warning mt-3">
+            <i class="bi bi-save"></i> Запази
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

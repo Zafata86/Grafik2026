@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% block title %}Моят График – {{ month_name }} {{ year }}{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  {# Лява колона – График #}
+  <div class="col-12">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-primary text-white d-flex align-items-center flex-wrap gap-2">
+        <span>
+          <i class="bi bi-person-lines-fill"></i>
+          <strong>{{ user.name }}</strong>
+          <span class="badge bg-light text-dark ms-1">Смяна {{ user.smyana|upper }}</span>
+        </span>
+        <span class="ms-auto d-flex gap-1">
+          <a href="/my-schedule/{{ py }}/{{ pm }}" class="btn btn-sm btn-light">
+            <i class="bi bi-chevron-left"></i>
+          </a>
+          <span class="btn btn-sm btn-outline-light disabled">{{ month_name }} {{ year }}</span>
+          <a href="/my-schedule/{{ ny }}/{{ nm }}" class="btn btn-sm btn-light">
+            <i class="bi bi-chevron-right"></i>
+          </a>
+        </span>
+      </div>
+      <div class="card-body p-2">
+        {# Легенда #}
+        <div class="d-flex flex-wrap gap-1 mb-2">
+          <span class="legend-item cell-1">1–Диспечерска</span>
+          <span class="legend-item cell-2">2–Нощна</span>
+          <span class="legend-item cell-8">8–Дневна</span>
+          <span class="legend-item cell-approved">Одобрена отпуска</span>
+          <span class="legend-item cell-planned">Планирана отпуска</span>
+          <span class="legend-item cell-sick">Б–Болничен</span>
+        </div>
+
+        {% if settings %}
+        <div class="text-muted small mb-2">
+          Норма: <strong>{{ target_hours(user.smyana, settings) or '–' }} ч.</strong> &nbsp;|&nbsp;
+          Отработени: <strong
+            class="{% if settings and my_hours < target_hours(user.smyana, settings)|int %}text-danger{% else %}text-success{% endif %}">
+            {{ my_hours }} ч.
+          </strong>
+        </div>
+        {% endif %}
+
+        <div class="table-responsive">
+          <table class="table table-bordered table-sm schedule-table mb-0">
+            <thead class="table-secondary">
+              <tr>
+                {% for day, wday in day_info %}
+                <th class="col-day text-center {% if wday >= 5 %}th-weekend{% endif %}">
+                  <div>{{ day }}</div>
+                  <div class="day-name">{{ DAY_NAMES[wday] }}</div>
+                </th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                {% for day, wday in day_info %}
+                {% set e = schedule.get(day) %}
+                {% set code = (e.code if e else '') or '' %}
+                {% set status = (e.leave_status if e else '') or 'normal' %}
+                {% if code == '0' and status == 'planned' %}
+                  <td class="sched-cell cell-planned" title="Планирана отпуска">0</td>
+                {% elif code == '0' %}
+                  <td class="sched-cell cell-approved" title="Одобрена отпуска">0</td>
+                {% elif code == 'Б' %}
+                  <td class="sched-cell cell-sick" title="Болничен">Б</td>
+                {% elif code == '1' %}
+                  <td class="sched-cell cell-1" title="Диспечерска">1</td>
+                {% elif code == '2' %}
+                  <td class="sched-cell cell-2" title="Нощна">2</td>
+                {% elif code == '8' %}
+                  <td class="sched-cell cell-8" title="Дневна">8</td>
+                {% elif code == 'Н' %}
+                  <td class="sched-cell cell-n" title="Неявяване">Н</td>
+                {% elif code == 'П' %}
+                  <td class="sched-cell cell-p" title="Компенсация">П</td>
+                {% elif wday >= 5 %}
+                  <td class="sched-cell cell-weekend-bg"></td>
+                {% else %}
+                  <td class="sched-cell"></td>
+                {% endif %}
+                {% endfor %}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Дни отпуска #}
+  <div class="col-md-4">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-header bg-success text-white">
+        <i class="bi bi-calendar-heart"></i> Дни Отпуска
+      </div>
+      <div class="card-body text-center py-4">
+        <div class="display-4 fw-bold text-success">{{ user.vacation_days_remaining }}</div>
+        <div class="text-muted">от {{ user.vacation_days_total }} общо</div>
+        <div class="mt-3">
+          <a href="/request-vacation" class="btn btn-success">
+            <i class="bi bi-calendar-plus"></i> Заяви Отпуска
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Заявки за отпуска #}
+  <div class="col-md-8">
+    <div class="card shadow-sm border-0">
+      <div class="card-header">
+        <i class="bi bi-list-check"></i> Моите Заявки за Отпуска
+      </div>
+      <div class="card-body p-0">
+        {% if vac_requests %}
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>От</th><th>До</th><th>Дни</th><th>Статус</th><th>Одобрено от</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in vac_requests %}
+            <tr>
+              <td>{{ r.date_from }}</td>
+              <td>{{ r.date_to }}</td>
+              <td>{{ r.days_count }}</td>
+              <td>
+                {% if r.status == 'pending' %}
+                  <span class="badge bg-warning text-dark">Чака</span>
+                {% elif r.status == 'approved' %}
+                  <span class="badge bg-success">Одобрена</span>
+                {% elif r.status == 'cancelled' %}
+                  <span class="badge bg-secondary">Анулирана</span>
+                {% else %}
+                  <span class="badge bg-danger">Отхвърлена</span>
+                {% endif %}
+              </td>
+              <td class="text-muted small">{{ r.appr_name or '–' }}</td>
+              <td>
+                {% if r.status == 'pending' %}
+                <form method="POST" action="/vacation/{{ r.id }}/cancel"
+                      onsubmit="return confirm('Анулирай отпуската?')">
+                  <button type="submit" class="btn btn-outline-danger btn-sm py-0">
+                    <i class="bi bi-x-circle"></i> Анулирай
+                  </button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="text-center text-muted py-3 mb-0">Няма заявки.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
