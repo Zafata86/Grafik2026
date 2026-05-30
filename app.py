@@ -1048,7 +1048,10 @@ def admin_paste_row():
 
 if __name__ == '__main__':
     if not os.path.exists(DB_PATH):
-        print('ГРЕШКА: Базата данни не съществува. Стартирайте init_db.py първо.')
-    else:
-        ensure_schema()
-        app.run(debug=True, host='0.0.0.0', port=5000)
+        print('База данни не е намерена – инициализирам...')
+        import subprocess, sys
+        subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'init_db.py')])
+    ensure_schema()
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV') != 'production'
+    app.run(debug=debug, host='0.0.0.0', port=port)
