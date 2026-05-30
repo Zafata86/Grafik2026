@@ -10,7 +10,11 @@ from functools import wraps
 app = Flask(__name__)
 app.secret_key = 'grafik-avtomatizaciya-2026'
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')
+# На Railway Volume е монтиран на /data; локално ползва папката на app.py
+if os.path.isdir('/data'):
+    DB_PATH = '/data/database.db'
+else:
+    DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')
 
 MONTH_NAMES = {
     1: 'Януари', 2: 'Февруари', 3: 'Март', 4: 'Април',

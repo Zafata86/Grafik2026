@@ -2,7 +2,10 @@ import sqlite3
 import os
 from werkzeug.security import generate_password_hash
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')
+if os.path.isdir('/data'):
+    DB_PATH = '/data/database.db'
+else:
+    DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')
 
 SCHEMA = '''
 CREATE TABLE IF NOT EXISTS users (
