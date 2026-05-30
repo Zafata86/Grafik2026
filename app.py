@@ -1076,6 +1076,19 @@ if not os.path.exists(DB_PATH):
     subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'init_db.py')])
 ensure_schema()
 
+# Ако няма данни в графика – зареди init_data.py автоматично
+try:
+    _chk = get_db()
+    _entries = _chk.execute('SELECT COUNT(*) FROM schedule_entries').fetchone()[0]
+    _chk.close()
+    if _entries == 0:
+        print('Няма данни в графика – зареждам init_data.py...')
+        import init_data
+        init_data.load()
+        print('Данните са заредени успешно.')
+except Exception as _e:
+    print(f'Грешка при зареждане на данни: {_e}')
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_ENV') != 'production'
