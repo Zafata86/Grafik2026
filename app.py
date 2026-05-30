@@ -1046,12 +1046,14 @@ def admin_paste_row():
     return jsonify({'ok': True, 'skipped': skipped})
 
 
+# Инициализация при стартиране (работи и с gunicorn и директно)
+if not os.path.exists(DB_PATH):
+    print('База данни не е намерена – инициализирам...')
+    import subprocess, sys
+    subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'init_db.py')])
+ensure_schema()
+
 if __name__ == '__main__':
-    if not os.path.exists(DB_PATH):
-        print('База данни не е намерена – инициализирам...')
-        import subprocess, sys
-        subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'init_db.py')])
-    ensure_schema()
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_ENV') != 'production'
     app.run(debug=debug, host='0.0.0.0', port=port)
