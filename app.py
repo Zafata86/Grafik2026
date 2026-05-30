@@ -212,6 +212,25 @@ def index():
     return redirect(url_for('dashboard') if 'user_id' in session else url_for('login'))
 
 
+@app.route('/status')
+def status():
+    try:
+        db = get_db()
+        users = db.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+        entries = db.execute('SELECT COUNT(*) FROM schedule_entries').fetchone()[0]
+        months = db.execute('SELECT COUNT(*) FROM month_settings').fetchone()[0]
+        db.close()
+        return jsonify({
+            'ok': True,
+            'db_path': DB_PATH,
+            'users': users,
+            'schedule_entries': entries,
+            'month_settings': months,
+        })
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e), 'db_path': DB_PATH}), 500
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if 'user_id' in session:
