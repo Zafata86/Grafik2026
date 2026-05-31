@@ -122,7 +122,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!nameCell) return;
     nameCell.addEventListener('click', (e) => {
       if (e.target.closest('button, a, input, select')) return;
-      row.classList.toggle('row-highlight');
+      const already = row.classList.contains('row-highlight');
+      document.querySelectorAll('.schedule-table tbody tr.row-highlight')
+        .forEach(r => r.classList.remove('row-highlight'));
+      if (!already) row.classList.add('row-highlight');
     });
   });
 });
