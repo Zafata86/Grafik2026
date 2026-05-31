@@ -1149,6 +1149,24 @@ def export_ics(year, month):
         'METHOD:PUBLISH',
         f'X-WR-CALNAME:График - {user["name"]}',
         'X-WR-TIMEZONE:Europe/Sofia',
+        # VTIMEZONE блок за коректна поддръжка на мобилни приложения
+        'BEGIN:VTIMEZONE',
+        'TZID:Europe/Sofia',
+        'BEGIN:DAYLIGHT',
+        'TZOFFSETFROM:+0200',
+        'TZOFFSETTO:+0300',
+        'TZNAME:EEST',
+        'DTSTART:19700329T030000',
+        'RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=3',
+        'END:DAYLIGHT',
+        'BEGIN:STANDARD',
+        'TZOFFSETFROM:+0300',
+        'TZOFFSETTO:+0200',
+        'TZNAME:EET',
+        'DTSTART:19701025T040000',
+        'RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=10',
+        'END:STANDARD',
+        'END:VTIMEZONE',
     ]
 
     for day in sorted(schedule.keys()):
@@ -1179,8 +1197,8 @@ def export_ics(year, month):
         lines += [
             'BEGIN:VEVENT',
             f'UID:{uid_val}',
-            f'DTSTART:{dtstart}',
-            f'DTEND:{dtend}',
+            f'DTSTART;TZID=Europe/Sofia:{dtstart}',
+            f'DTEND;TZID=Europe/Sofia:{dtend}',
             f'SUMMARY:Работа - {code_name}',
             f'DESCRIPTION:у-к Автоматизация\\n{MONTH_NAMES[month]} {year}',
         ]

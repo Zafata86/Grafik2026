@@ -40,8 +40,9 @@
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
             <i class="bi bi-gear-fill"></i> Администрация
-            {% if pending_count > 0 %}
-            <span class="badge bg-danger rounded-pill">{{ pending_count }}</span>
+            {% set total_pending = pending_count + pending_changes_count %}
+            {% if total_pending > 0 %}
+            <span class="badge bg-danger rounded-pill">{{ total_pending }}</span>
             {% endif %}
           </a>
           <ul class="dropdown-menu shadow">
