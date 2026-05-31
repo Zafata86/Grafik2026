@@ -841,13 +841,20 @@ def handle_vacation(req_id, action):
 @app.route('/admin/employees')
 @admin_required
 def admin_employees():
+    current_year = date.today().year
     db = get_db()
     employees = db.execute(
-        'SELECT * FROM users ORDER BY CAST(tab_number AS INTEGER)'
+        '''SELECT u.*,
+             (SELECT COUNT(*) FROM schedule_entries se
+              WHERE se.employee_id = u.id AND se.code = 'Б' AND se.year = ?) AS sick_days
+           FROM users u
+           ORDER BY CAST(tab_number AS INTEGER)''',
+        (current_year,)
     ).fetchall()
     db.close()
     return render_template('admin/employees.html',
-                           employees=employees, SMYANA_OPTIONS=SMYANA_OPTIONS)
+                           employees=employees, SMYANA_OPTIONS=SMYANA_OPTIONS,
+                           current_year=current_year)
 
 
 @app.route('/admin/employees/add', methods=['POST'])

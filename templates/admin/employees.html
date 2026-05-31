@@ -20,6 +20,7 @@
           <th class="text-center">Роля</th>
           <th class="text-center">Отпуска (общо)</th>
           <th class="text-center">Отпуска (ост.)</th>
+          <th class="text-center">Болнични {{ current_year }}</th>
           <th class="text-center">Потребител</th>
           <th></th>
         </tr>
@@ -42,6 +43,9 @@
           <td class="text-center">{{ emp.vacation_days_total }}</td>
           <td class="text-center {% if emp.vacation_days_remaining <= 5 %}text-danger fw-bold{% endif %}">
             {{ emp.vacation_days_remaining }}
+          </td>
+          <td class="text-center {% if emp.sick_days > 0 %}text-danger fw-bold{% else %}text-muted{% endif %}">
+            {{ emp.sick_days }}
           </td>
           <td class="text-center small text-muted">{{ emp.username }}</td>
           <td>
