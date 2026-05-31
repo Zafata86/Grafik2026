@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% block title %}Заявки за Промяна / Болничен{% endblock %}
+
+{% block content %}
+<h5 class="mb-3">
+  <i class="bi bi-arrow-left-right text-warning"></i> Заявки за Промяна на График / Болничен
+  {% set pending = requests|selectattr('status', 'eq', 'pending')|list %}
+  {% if pending %}
+  <span class="badge bg-danger">{{ pending|length }} чакат</span>
+  {% endif %}
+</h5>
+
+{% if requests %}
+<div class="card shadow-sm border-0">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0 align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>Служител</th>
+          <th>Раб. №</th>
+          <th>Тип</th>
+          <th>Предложени промени</th>
+          <th>Бележка</th>
+          <th>Заявено</th>
+          <th>Статус</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in requests %}
+        <tr class="
+          {% if r.status == 'pending' %}table-warning
+          {% elif r.status == 'approved' %}table-success
+          {% else %}table-light{% endif %}">
+          <td class="fw-semibold">{{ r.emp_name }}</td>
+          <td class="text-muted small">{{ r.tab_number }}</td>
+          <td>
+            {% if r.request_type == 'sick' %}
+              <span class="badge bg-danger"><i class="bi bi-hospital"></i> Болничен</span>
+            {% else %}
+              <span class="badge bg-info text-dark"><i class="bi bi-arrow-left-right"></i> Промяна</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="d-flex flex-wrap gap-1">
+              {% for ch in r.changes %}
+              <span class="badge bg-light text-dark border" style="font-size:0.75rem">
+                {{ ch.date[5:] }}:
+                <span class="text-secondary">{{ ch.from_code or '–' }}</span>
+                <i class="bi bi-arrow-right"></i>
+                <strong>{{ ch.to_code }}</strong>
+              </span>
+              {% endfor %}
+            </div>
+          </td>
+          <td class="small text-muted">{{ r.employee_comment or '–' }}</td>
+          <td class="small text-muted">
+            {{ r.requested_at[:16].replace('T',' ') if r.requested_at else '–' }}
+          </td>
+          <td>
+            {% if r.status == 'pending' %}
+              <span class="badge bg-warning text-dark"><i class="bi bi-hourglass"></i> Чака</span>
+            {% elif r.status == 'approved' %}
+              <span class="badge bg-success"><i class="bi bi-check"></i> Одобрена</span>
+              <div class="small text-muted">от {{ r.reviewer_name or '–' }}</div>
+              {% if r.admin_comment %}
+              <div class="small fst-italic">{{ r.admin_comment }}</div>
+              {% endif %}
+            {% else %}
+              <span class="badge bg-danger"><i class="bi bi-x"></i> Отхвърлена</span>
+              <div class="small text-muted">от {{ r.reviewer_name or '–' }}</div>
+              {% if r.admin_comment %}
+              <div class="small fst-italic">{{ r.admin_comment }}</div>
+              {% endif %}
+            {% endif %}
+          </td>
+          <td>
+            {% if r.status == 'pending' %}
+            <div class="d-flex gap-1 flex-wrap">
+              {# Одобри #}
+              <form method="POST" action="/admin/change-requests/{{ r.id }}/approve">
+                <button type="submit" class="btn btn-success btn-sm py-0" title="Одобри">
+                  <i class="bi bi-check-lg"></i>
+                </button>
+              </form>
+              {# Отхвърли с бележка #}
+              <button class="btn btn-danger btn-sm py-0"
+                      data-bs-toggle="modal"
+                      data-bs-target="#rejectModal{{ r.id }}"
+                      title="Отхвърли">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+            {% endif %}
+          </td>
+        </tr>
+
+        {# Модал за отхвърляне #}
+        {% if r.status == 'pending' %}
+        <div class="modal fade" id="rejectModal{{ r.id }}" tabindex="-1">
+          <div class="modal-dialog modal-sm">
+            <div class="modal-content shadow">
+              <div class="modal-header bg-danger text-white py-2">
+                <h6 class="modal-title"><i class="bi bi-x-circle"></i> Отхвърли заявка</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+              </div>
+              <form method="POST" action="/admin/change-requests/{{ r.id }}/reject">
+                <div class="modal-body">
+                  <p class="small mb-2 text-muted">{{ r.emp_name }}</p>
+                  <div class="mb-2">
+                    <label class="form-label small">Причина (незадължително)</label>
+                    <textarea name="admin_comment" class="form-control form-control-sm"
+                              rows="2" placeholder="Обяснение защо се отхвърля..."></textarea>
+                  </div>
+                </div>
+                <div class="modal-footer py-2">
+                  <button type="button" class="btn btn-secondary btn-sm"
+                          data-bs-dismiss="modal">Отказ</button>
+                  <button type="submit" class="btn btn-danger btn-sm">
+                    <i class="bi bi-x-lg"></i> Отхвърли
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-info">
+  <i class="bi bi-info-circle"></i> Няма заявки за промяна на график.
+</div>
+{% endif %}
+{% endblock %}

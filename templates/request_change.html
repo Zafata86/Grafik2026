@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+{% block title %}Заявка за Промяна / Болничен{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-11">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-warning text-dark">
+        <i class="bi bi-pencil-square"></i>
+        <strong>Заявка за Промяна на График / Болничен</strong>
+      </div>
+      <div class="card-body">
+        <form method="POST">
+
+          {# Тип заявка #}
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Тип заявка</label>
+            <div class="d-flex gap-4">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="request_type"
+                       id="typeChange" value="change" checked>
+                <label class="form-check-label" for="typeChange">
+                  <i class="bi bi-arrow-left-right text-info"></i>
+                  <strong>Промяна на смяна</strong>
+                  <div class="text-muted small">Предлагате размяна на смени за конкретни дни</div>
+                </label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="request_type"
+                       id="typeSick" value="sick">
+                <label class="form-check-label" for="typeSick">
+                  <i class="bi bi-hospital text-danger"></i>
+                  <strong>Болничен</strong>
+                  <div class="text-muted small">Подавате болничен лист за период от дати</div>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {# Болничен секция #}
+          <div id="sickSection" style="display:none">
+            <div class="card bg-light border-0 mb-3 p-3">
+              <div class="row g-3">
+                <div class="col-sm-4">
+                  <label class="form-label">От дата</label>
+                  <input type="date" name="sick_from" id="sickFrom" class="form-control">
+                </div>
+                <div class="col-sm-4">
+                  <label class="form-label">До дата</label>
+                  <input type="date" name="sick_to" id="sickTo" class="form-control">
+                </div>
+              </div>
+              <div class="alert alert-warning py-1 small mt-2 mb-0">
+                <i class="bi bi-info-circle"></i>
+                Всички дни в периода ще бъдат маркирани с код <strong>Б</strong> след одобрение.
+              </div>
+            </div>
+          </div>
+
+          {# Промяна на смяна секция #}
+          <div id="changeSection">
+            {# Избор на месец #}
+            <div class="mb-3 d-flex align-items-center gap-2">
+              <label class="form-label mb-0 fw-semibold">Месец:</label>
+              <select name="month_sel" class="form-select form-select-sm w-auto" id="monthSel">
+                {% for my, mm in available_months %}
+                <option value="{{ my }}-{{ mm }}"
+                  {% if my == year and mm == month %}selected{% endif %}>
+                  {{ MONTH_NAMES[mm] }} {{ my }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            {# Таблица с текущ график + ред за промяна #}
+            <div class="table-responsive mb-2">
+              <table class="table table-bordered table-sm mb-0">
+                <thead class="table-secondary">
+                  <tr>
+                    <th class="text-muted small align-middle" style="min-width:70px">Ред</th>
+                    {% for d, wd in day_info %}
+                    <th class="text-center {% if wd >= 5 %}th-weekend{% endif %}"
+                        style="min-width:38px; padding:2px">
+                      <div class="small">{{ d }}</div>
+                      <div class="day-name">{{ DAY_NAMES[wd] }}</div>
+                    </th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {# Текущ график #}
+                  <tr>
+                    <td class="text-muted small align-middle">Сега</td>
+                    {% for d, wd in day_info %}
+                    {% set e = schedule.get(d) %}
+                    {% set code = (e.code if e else '') or '' %}
+                    <td class="sched-cell text-center
+                      {% if code == '1' %}cell-1
+                      {% elif code == '2' %}cell-2
+                      {% elif code == '8' %}cell-8
+                      {% elif code == '0' %}cell-approved
+                      {% elif code == 'Б' %}cell-sick
+                      {% elif wd >= 5 %}cell-weekend-bg
+                      {% endif %}">{{ code }}</td>
+                    {% endfor %}
+                  </tr>
+                  {# Предложена промяна #}
+                  <tr>
+                    <td class="text-muted small align-middle">Искам</td>
+                    {% for d, wd in day_info %}
+                    <td class="p-0 text-center">
+                      <select name="day_{{ d }}"
+                              class="form-select border-0 p-0 text-center change-sel"
+                              style="min-width:36px; font-size:0.78rem; height:32px">
+                        <option value="">–</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="8">8</option>
+                        <option value="0">0</option>
+                        <option value="Б">Б</option>
+                        <option value="Н">Н</option>
+                        <option value="П">П</option>
+                      </select>
+                    </td>
+                    {% endfor %}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="text-muted small mb-3">
+              <i class="bi bi-info-circle"></i>
+              Горният ред е текущият ви график. В долния ред изберете само дните, които искате да промените (оставете <strong>–</strong> за дните без промяна).
+            </div>
+          </div>
+
+          {# Бележка #}
+          <div class="mb-3">
+            <label class="form-label">Бележка <span class="text-muted small">(незадължително)</span></label>
+            <textarea name="comment" class="form-control" rows="2"
+                      placeholder="Обяснение за исканата промяна, размяна с колега и т.н."></textarea>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-warning">
+              <i class="bi bi-send"></i> Изпрати Заявка
+            </button>
+            <a href="/my-schedule" class="btn btn-outline-secondary">
+              <i class="bi bi-x"></i> Отказ
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const typeChange = document.getElementById('typeChange');
+  const typeSick   = document.getElementById('typeSick');
+  const sickSec    = document.getElementById('sickSection');
+  const chgSec     = document.getElementById('changeSection');
+
+  function updateType() {
+    if (typeSick.checked) {
+      sickSec.style.display = '';
+      chgSec.style.display  = 'none';
+    } else {
+      sickSec.style.display = 'none';
+      chgSec.style.display  = '';
+    }
+  }
+  typeChange.addEventListener('change', updateType);
+  typeSick.addEventListener('change', updateType);
+
+  // Промяна на месец → презареди страницата
+  document.getElementById('monthSel').addEventListener('change', function () {
+    const [y, m] = this.value.split('-');
+    window.location.href = `/request-change?year=${y}&month=${m}`;
+  });
+
+  // Оцвети избраните клетки в долния ред
+  document.querySelectorAll('.change-sel').forEach(sel => {
+    sel.addEventListener('change', function () {
+      const colors = {'1':'#ffd700','2':'#6fa8dc','8':'#93c47d','0':'#92D050',
+                      'Б':'#ffff00','Н':'#e06666','П':'#b7b7b7','':`''`};
+      this.style.backgroundColor = colors[this.value] || '';
+    });
+  });
+</script>
+{% endblock %}

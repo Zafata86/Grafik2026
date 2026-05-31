@@ -151,6 +151,21 @@ def ensure_schema():
                 db.execute('INSERT INTO holidays (date,name) VALUES (?,?)', (d, n))
             except Exception:
                 pass
+
+    db.execute('''CREATE TABLE IF NOT EXISTS schedule_change_requests (
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        employee_id      INTEGER NOT NULL,
+        request_type     TEXT    DEFAULT 'change',
+        changes_json     TEXT    NOT NULL DEFAULT '[]',
+        status           TEXT    DEFAULT 'pending',
+        employee_comment TEXT    DEFAULT '',
+        admin_comment    TEXT    DEFAULT '',
+        requested_at     TEXT,
+        reviewed_by      INTEGER,
+        reviewed_at      TEXT,
+        FOREIGN KEY (employee_id) REFERENCES users(id)
+    )''')
+
     db.commit()
     db.close()
 
@@ -196,13 +211,18 @@ def nav_months(year, month):
 @app.context_processor
 def inject_globals():
     pending = 0
+    pending_changes = 0
     if 'user_id' in session and session.get('role') == 'admin':
         db = get_db()
         pending = db.execute(
             "SELECT COUNT(*) FROM vacation_requests WHERE status='pending'"
         ).fetchone()[0]
+        pending_changes = db.execute(
+            "SELECT COUNT(*) FROM schedule_change_requests WHERE status='pending'"
+        ).fetchone()[0]
         db.close()
-    return {'pending_count': pending, 'MONTH_NAMES': MONTH_NAMES}
+    return {'pending_count': pending, 'pending_changes_count': pending_changes,
+            'MONTH_NAMES': MONTH_NAMES}
 
 
 # ── AUTH ───────────────────────────────────────────────────────────────────────
@@ -347,10 +367,25 @@ def my_schedule(year=None, month=None):
            ORDER BY vr.requested_at DESC LIMIT 30''',
         (session['user_id'],)
     ).fetchall()
+    change_requests = db.execute(
+        '''SELECT cr.*, u2.name as reviewer_name
+           FROM schedule_change_requests cr
+           LEFT JOIN users u2 ON cr.reviewed_by = u2.id
+           WHERE cr.employee_id=?
+           ORDER BY cr.requested_at DESC LIMIT 20''',
+        (session['user_id'],)
+    ).fetchall()
     settings = db.execute(
         'SELECT * FROM month_settings WHERE year=? AND month=?', (year, month)
     ).fetchone()
     db.close()
+
+    import json as _json
+    change_requests_parsed = []
+    for cr in change_requests:
+        d = dict(cr)
+        d['changes'] = _json.loads(d['changes_json'] or '[]')
+        change_requests_parsed.append(d)
 
     schedule = {e['day']: e for e in entries_raw}
     days_in_month = calendar.monthrange(year, month)[1]
@@ -363,6 +398,7 @@ def my_schedule(year=None, month=None):
         month_name=MONTH_NAMES[month], days_in_month=days_in_month,
         day_info=day_info, DAY_NAMES=DAY_NAMES, settings=settings,
         today=today, my_hours=my_hours, vac_requests=vac_requests,
+        change_requests=change_requests_parsed,
         target_hours=target_hours, py=py, pm=pm, ny=ny, nm=nm
     )
 
@@ -458,6 +494,177 @@ def request_vacation():
     db.close()
     return render_template('request_vacation.html', user=user,
                            holiday_dates=holiday_dates)
+
+
+# ── ЗАЯВКА ЗА ПРОМЯНА НА ГРАФИК / БОЛНИЧЕН ────────────────────────────────────
+
+@app.route('/request-change', methods=['GET', 'POST'])
+@login_required
+def request_change():
+    import json as _json
+    today = date.today()
+    year  = int(request.args.get('year',  today.year))
+    month = int(request.args.get('month', today.month))
+
+    # Покажи: миналия месец, текущия, следващите 2
+    available_months = []
+    for delta in [-1, 0, 1, 2]:
+        m, y = month + delta, year
+        while m > 12: m -= 12; y += 1
+        while m < 1:  m += 12; y -= 1
+        available_months.append((y, m))
+
+    db = get_db()
+
+    if request.method == 'POST':
+        req_type = request.form.get('request_type', 'change')
+        comment  = request.form.get('comment', '').strip()
+        changes  = []
+
+        if req_type == 'sick':
+            sick_from = request.form.get('sick_from', '').strip()
+            sick_to   = request.form.get('sick_to', '').strip()
+            if not sick_from or not sick_to:
+                flash('Изберете дати за болничния.', 'danger')
+                db.close()
+                return redirect(url_for('request_change'))
+            from_date = date.fromisoformat(sick_from)
+            to_date   = date.fromisoformat(sick_to)
+            if from_date > to_date:
+                flash('Началната дата трябва да е преди крайната.', 'danger')
+                db.close()
+                return redirect(url_for('request_change'))
+            cur = from_date
+            while cur <= to_date:
+                entry = db.execute(
+                    'SELECT code FROM schedule_entries WHERE employee_id=? AND year=? AND month=? AND day=?',
+                    (session['user_id'], cur.year, cur.month, cur.day)
+                ).fetchone()
+                changes.append({'date': cur.isoformat(),
+                                'from_code': entry['code'] if entry else '',
+                                'to_code': 'Б'})
+                cur += timedelta(days=1)
+
+        else:  # change
+            days_in_month = calendar.monthrange(year, month)[1]
+            entries = db.execute(
+                'SELECT day, code FROM schedule_entries WHERE employee_id=? AND year=? AND month=?',
+                (session['user_id'], year, month)
+            ).fetchall()
+            current = {e['day']: e['code'] for e in entries}
+            for d in range(1, days_in_month + 1):
+                new_code = request.form.get(f'day_{d}', '').strip()
+                if new_code:
+                    changes.append({'date': f'{year:04d}-{month:02d}-{d:02d}',
+                                    'from_code': current.get(d, ''),
+                                    'to_code': new_code})
+
+        if not changes:
+            flash('Не сте избрали нито един ден за промяна.', 'warning')
+            db.close()
+            return redirect(url_for('request_change', year=year, month=month))
+
+        db.execute(
+            '''INSERT INTO schedule_change_requests
+               (employee_id, request_type, changes_json, status, employee_comment, requested_at)
+               VALUES (?, ?, ?, 'pending', ?, ?)''',
+            (session['user_id'], req_type,
+             _json.dumps(changes, ensure_ascii=False),
+             comment, datetime.now().isoformat())
+        )
+        db.commit()
+        db.close()
+        flash('Заявката е изпратена успешно. Очаква одобрение от администратор.', 'success')
+        return redirect(url_for('my_schedule'))
+
+    # GET
+    days_in_month = calendar.monthrange(year, month)[1]
+    day_info = [(d, date(year, month, d).weekday()) for d in range(1, days_in_month + 1)]
+    entries  = db.execute(
+        'SELECT day, code, leave_status FROM schedule_entries WHERE employee_id=? AND year=? AND month=?',
+        (session['user_id'], year, month)
+    ).fetchall()
+    schedule = {e['day']: e for e in entries}
+    db.close()
+
+    return render_template('request_change.html',
+        year=year, month=month, month_name=MONTH_NAMES[month],
+        day_info=day_info, schedule=schedule,
+        available_months=available_months, DAY_NAMES=DAY_NAMES)
+
+
+# ── ADMIN: ЗАЯВКИ ЗА ПРОМЯНА ─────────────────────────────────────────────────
+
+@app.route('/admin/change-requests')
+@admin_required
+def admin_change_requests():
+    import json as _json
+    db = get_db()
+    rows = db.execute('''
+        SELECT cr.*, u.name AS emp_name, u.tab_number,
+               a.name AS reviewer_name
+        FROM schedule_change_requests cr
+        JOIN  users u ON cr.employee_id = u.id
+        LEFT JOIN users a ON cr.reviewed_by  = a.id
+        ORDER BY (cr.status = 'pending') DESC, cr.requested_at DESC
+    ''').fetchall()
+    requests = []
+    for r in rows:
+        d = dict(r)
+        d['changes'] = _json.loads(d['changes_json'] or '[]')
+        requests.append(d)
+    db.close()
+    return render_template('admin/change_requests.html', requests=requests)
+
+
+@app.route('/admin/change-requests/<int:req_id>/approve', methods=['POST'])
+@admin_required
+def approve_change_request(req_id):
+    import json as _json
+    admin_comment = request.form.get('admin_comment', '').strip()
+    db = get_db()
+    req = db.execute('SELECT * FROM schedule_change_requests WHERE id=?', (req_id,)).fetchone()
+    if not req or req['status'] != 'pending':
+        flash('Заявката не е намерена или вече е обработена.', 'danger')
+        db.close()
+        return redirect(url_for('admin_change_requests'))
+
+    changes = _json.loads(req['changes_json'] or '[]')
+    for ch in changes:
+        d = date.fromisoformat(ch['date'])
+        leave_st = 'approved' if ch['to_code'] == '0' else 'normal'
+        db.execute('''
+            INSERT INTO schedule_entries (employee_id, year, month, day, code, leave_status)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(employee_id, year, month, day)
+            DO UPDATE SET code=excluded.code, leave_status=excluded.leave_status
+        ''', (req['employee_id'], d.year, d.month, d.day, ch['to_code'], leave_st))
+
+    db.execute('''
+        UPDATE schedule_change_requests
+        SET status='approved', reviewed_by=?, reviewed_at=?, admin_comment=?
+        WHERE id=?
+    ''', (session['user_id'], datetime.now().isoformat(), admin_comment, req_id))
+    db.commit()
+    db.close()
+    flash('Заявката е одобрена и промените са приложени в графика.', 'success')
+    return redirect(url_for('admin_change_requests'))
+
+
+@app.route('/admin/change-requests/<int:req_id>/reject', methods=['POST'])
+@admin_required
+def reject_change_request(req_id):
+    admin_comment = request.form.get('admin_comment', '').strip()
+    db = get_db()
+    db.execute('''
+        UPDATE schedule_change_requests
+        SET status='rejected', reviewed_by=?, reviewed_at=?, admin_comment=?
+        WHERE id=?
+    ''', (session['user_id'], datetime.now().isoformat(), admin_comment, req_id))
+    db.commit()
+    db.close()
+    flash('Заявката е отхвърлена.', 'info')
+    return redirect(url_for('admin_change_requests'))
 
 
 # ── ADMIN: РЕДАКЦИЯ НА ГРАФИКА ────────────────────────────────────────────────
