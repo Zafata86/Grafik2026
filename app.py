@@ -73,14 +73,20 @@ def calc_hours(schedule_for_emp):
         elif code == '8': total += 8
         elif code == '0': total += 8
         elif code == 'Б':
+            orig = ''
             try:
                 orig = e['original_code'] or ''
             except (IndexError, TypeError):
-                orig = ''
+                pass
+            if not orig:
+                try:
+                    orig = e['plan_code'] or ''
+                except (IndexError, TypeError):
+                    pass
             if orig == '1':   total += 12
             elif orig == '2': total += 13.143
             elif orig == '8': total += 8
-            # без original_code = почивен ден → 0ч
+            # без план код = почивен ден → 0ч
         elif code == 'Н': total += 8
     return round(total, 1)
 
@@ -164,38 +170,38 @@ def ensure_schema():
         db.execute('ALTER TABLE schedule_entries ADD COLUMN original_code TEXT DEFAULT NULL')
     except Exception:
         pass
-    # Еднократна миграция: попълни original_code за Б записи
-    already = db.execute(
-        "SELECT value FROM app_settings WHERE key='migration_sick_orig_done2'"
-    ).fetchone()
-    if not already:
-        # Изчисти стари грешно попълнени стойности (от предишна миграция по ±7 дни)
-        db.execute(
-            "UPDATE schedule_entries SET original_code=NULL "
-            "WHERE code='Б' AND original_code IN ('1','2','8')"
-        )
-        # Попълни original_code като сравни с колега от същата смяна
+    try:
+        db.execute('ALTER TABLE schedule_entries ADD COLUMN plan_code TEXT DEFAULT NULL')
+    except Exception:
+        pass
+
+    # Еднократна миграция: презареди Май и Юни 2026 с чисти данни + попълни plan_code
+    if not db.execute("SELECT value FROM app_settings WHERE key='reload_may_june_2026'").fetchone():
+        from init_data import SCHEDULE_DATA
+        tab_map = {r[0]: r[1] for r in db.execute('SELECT tab_number,id FROM users').fetchall()}
+        db.execute('DELETE FROM schedule_entries WHERE year=2026 AND month IN (5,6)')
+        for tab, yr, mo, day, code, ls in SCHEDULE_DATA:
+            if yr == 2026 and mo in (5, 6):
+                eid = tab_map.get(tab)
+                if not eid:
+                    continue
+                pc = code if code in ('1', '2', '8', '0', 'Н', 'П') else None
+                db.execute(
+                    '''INSERT OR REPLACE INTO schedule_entries
+                       (employee_id, year, month, day, code, leave_status, plan_code)
+                       VALUES (?,?,?,?,?,?,?)''',
+                    (eid, yr, mo, day, code, ls, pc)
+                )
+        db.execute("INSERT OR REPLACE INTO app_settings (key,value) VALUES ('reload_may_june_2026','1')")
+
+    # Попълни plan_code за всички съществуващи записи без него
+    if not db.execute("SELECT value FROM app_settings WHERE key='plan_code_migration_done'").fetchone():
         db.execute("""
-            UPDATE schedule_entries
-            SET original_code = (
-                SELECT other.code
-                FROM schedule_entries other
-                JOIN users u_sick  ON schedule_entries.employee_id = u_sick.id
-                JOIN users u_other ON other.employee_id = u_other.id
-                WHERE other.employee_id != schedule_entries.employee_id
-                  AND UPPER(u_other.smyana) = UPPER(u_sick.smyana)
-                  AND other.year  = schedule_entries.year
-                  AND other.month = schedule_entries.month
-                  AND other.day   = schedule_entries.day
-                  AND other.code IN ('1','2','8')
-                LIMIT 1
-            )
-            WHERE code = 'Б'
-              AND (original_code IS NULL OR original_code = '')
+            UPDATE schedule_entries SET plan_code = code
+            WHERE code IN ('1','2','8','0','Н','П')
+              AND (plan_code IS NULL OR plan_code = '')
         """)
-        db.execute(
-            "INSERT OR REPLACE INTO app_settings (key,value) VALUES ('migration_sick_orig_done2','1')"
-        )
+        db.execute("INSERT OR REPLACE INTO app_settings (key,value) VALUES ('plan_code_migration_done','1')")
 
 
     db.execute('''CREATE TABLE IF NOT EXISTS schedule_change_requests (
@@ -692,13 +698,29 @@ def approve_change_request(req_id):
     changes = _json.loads(req['changes_json'] or '[]')
     for ch in changes:
         d = date.fromisoformat(ch['date'])
-        leave_st = 'approved' if ch['to_code'] == '0' else 'normal'
-        db.execute('''
-            INSERT INTO schedule_entries (employee_id, year, month, day, code, leave_status)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(employee_id, year, month, day)
-            DO UPDATE SET code=excluded.code, leave_status=excluded.leave_status
-        ''', (req['employee_id'], d.year, d.month, d.day, ch['to_code'], leave_st))
+        to_code = ch['to_code'] or ''
+        leave_st = 'approved' if to_code == '0' else 'normal'
+        if to_code == 'Б':
+            # За болничен: запази plan_code непроменен, само обнови code
+            cur = db.execute(
+                'SELECT plan_code, code FROM schedule_entries WHERE employee_id=? AND year=? AND month=? AND day=?',
+                (req['employee_id'], d.year, d.month, d.day)
+            ).fetchone()
+            plan = (cur['plan_code'] or cur['code'] or '') if cur else ''
+            db.execute('''
+                INSERT INTO schedule_entries (employee_id, year, month, day, code, leave_status, original_code, plan_code)
+                VALUES (?, ?, ?, ?, 'Б', 'normal', ?, ?)
+                ON CONFLICT(employee_id, year, month, day)
+                DO UPDATE SET code='Б', leave_status='normal', original_code=excluded.original_code
+            ''', (req['employee_id'], d.year, d.month, d.day, plan or None, plan or None))
+        else:
+            pc = to_code if to_code in ('1', '2', '8', '0', 'Н', 'П') else None
+            db.execute('''
+                INSERT INTO schedule_entries (employee_id, year, month, day, code, leave_status, plan_code)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(employee_id, year, month, day)
+                DO UPDATE SET code=excluded.code, leave_status=excluded.leave_status, plan_code=excluded.plan_code
+            ''', (req['employee_id'], d.year, d.month, d.day, to_code, leave_st, pc))
 
     db.execute('''
         UPDATE schedule_change_requests
@@ -797,28 +819,31 @@ def admin_schedule_cell():
             (emp_id, year, month, day)
         )
     elif code == 'Б':
-        # Запазваме оригиналния код (от JS или от DB) за да знаем часовете
-        orig = data.get('original_code', '').strip()
-        if not orig:
-            cur = db.execute(
-                'SELECT code FROM schedule_entries WHERE employee_id=? AND year=? AND month=? AND day=?',
-                (emp_id, year, month, day)
-            ).fetchone()
-            if cur and cur['code'] and cur['code'] not in ('Б', '0', '', None):
-                orig = cur['code']
+        # Чете plan_code (базовия план) от съществуващия запис → original_code
+        cur = db.execute(
+            'SELECT plan_code, code FROM schedule_entries WHERE employee_id=? AND year=? AND month=? AND day=?',
+            (emp_id, year, month, day)
+        ).fetchone()
+        if cur:
+            plan = cur['plan_code'] or ''
+            if not plan and cur['code'] and cur['code'] not in ('Б', '', None):
+                plan = cur['code']
+        else:
+            plan = ''
         db.execute(
             '''INSERT OR REPLACE INTO schedule_entries
-               (employee_id, year, month, day, code, leave_status, original_code)
-               VALUES (?, ?, ?, ?, 'Б', 'normal', ?)''',
-            (emp_id, year, month, day, orig or None)
+               (employee_id, year, month, day, code, leave_status, original_code, plan_code)
+               VALUES (?, ?, ?, ?, 'Б', 'normal', ?, ?)''',
+            (emp_id, year, month, day, plan or None, plan or None)
         )
     else:
         leave_status = 'approved' if code == '0' else 'normal'
+        pc = code if code in ('1', '2', '8', '0', 'Н', 'П') else None
         db.execute(
             '''INSERT OR REPLACE INTO schedule_entries
-               (employee_id, year, month, day, code, leave_status)
-               VALUES (?, ?, ?, ?, ?, ?)''',
-            (emp_id, year, month, day, code, leave_status)
+               (employee_id, year, month, day, code, leave_status, plan_code)
+               VALUES (?, ?, ?, ?, ?, ?, ?)''',
+            (emp_id, year, month, day, code, leave_status, pc)
         )
     db.commit()
     db.close()

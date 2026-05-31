@@ -2633,7 +2633,8 @@ def load():
     for tab,yr,mo,day,code,ls in SCHEDULE_DATA:
         eid = tab_map.get(tab)
         if not eid: continue
-        cur.execute("INSERT OR REPLACE INTO schedule_entries (employee_id,year,month,day,code,leave_status) VALUES (?,?,?,?,?,?)", (eid,yr,mo,day,code,ls))
+        pc = code if code in ('1','2','8','0','Н','П') else None
+        cur.execute("INSERT OR REPLACE INTO schedule_entries (employee_id,year,month,day,code,leave_status,plan_code) VALUES (?,?,?,?,?,?,?)", (eid,yr,mo,day,code,ls,pc))
         inserted += 1
     conn.commit(); conn.close()
     print(f"Заредени {inserted} записа от графика.")
