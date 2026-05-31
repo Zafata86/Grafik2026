@@ -75,7 +75,8 @@
         {% elif code == '0' %}
           <td class="sched-cell cell-approved" title="Отпуска">0</td>
         {% elif code == 'Б' %}
-          <td class="sched-cell cell-sick" title="Болничен">Б</td>
+          {% set orig = (e.original_code or '') if e else '' %}
+          <td class="sched-cell cell-sick" title="Болничен{% if orig %} (трябвало: {{ orig }}){% endif %}">Б{% if orig %}<sup class="orig-sup">{{ orig }}</sup>{% endif %}</td>
         {% elif code == '1' %}
           <td class="sched-cell cell-1" title="Диспечерска">1</td>
         {% elif code == '2' %}

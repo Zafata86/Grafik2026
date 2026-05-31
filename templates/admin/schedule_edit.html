@@ -134,7 +134,11 @@
             data-year="{{ year }}" data-month="{{ month }}" data-day="{{ day }}"
             data-code="{{ code }}"
             data-original-code="{{ (e.original_code or '') if e and code == 'Б' else '' }}"
-            data-weekend="{{ 'true' if wday >= 5 else 'false' }}">{{ code }}</td>
+            data-weekend="{{ 'true' if wday >= 5 else 'false' }}">
+            {%- if code == 'Б' and e and e.original_code -%}
+              Б<sup class="orig-sup">{{ e.original_code }}</sup>
+            {%- else -%}{{ code }}{%- endif -%}
+          </td>
         {% endfor %}
         <td class="text-center fw-bold col-hours hours-cell
           {% if th and ah < th %}text-danger hours-danger-bg{% elif th and ah >= th %}text-success{% endif %}"

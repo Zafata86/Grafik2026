@@ -50,10 +50,13 @@ function applyCodeToCell(cell, code, originalCode) {
   cell.dataset.code = code;
   if (code === 'Б' && originalCode != null) {
     cell.dataset.originalCode = originalCode;
-  } else if (code !== 'Б') {
-    delete cell.dataset.originalCode;
+    cell.innerHTML = originalCode
+      ? 'Б<sup class="orig-sup">' + originalCode + '</sup>'
+      : 'Б';
+  } else {
+    if (code !== 'Б') delete cell.dataset.originalCode;
+    cell.textContent = code;
   }
-  cell.textContent = code;
   recalcRow(cell.closest('tr'));
 }
 

@@ -134,5 +134,14 @@
   background-color: #ffd6d6 !important;
 }
 
+/* Оригинален код при болничен (Б¹, Б⁸) */
+.orig-sup {
+  font-size: 0.62em;
+  font-weight: 700;
+  opacity: 0.8;
+  vertical-align: super;
+  line-height: 1;
+}
+
 /* ── Навигация по месеци ──────────────────────── */
 .month-nav .btn { font-size: 0.85rem; }
