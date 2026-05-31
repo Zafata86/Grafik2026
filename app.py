@@ -1197,13 +1197,15 @@ def export_ics(year, month):
         dtend = shift_end.strftime('%Y%m%dT%H%M%S')
         uid_val = str(uuid.uuid4())
 
+        dtstamp = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
         lines += [
             'BEGIN:VEVENT',
             f'UID:{uid_val}',
+            f'DTSTAMP:{dtstamp}',
             f'DTSTART;TZID=Europe/Sofia:{dtstart}',
             f'DTEND;TZID=Europe/Sofia:{dtend}',
             f'SUMMARY:Работа - {code_name}',
-            f'DESCRIPTION:у-к Автоматизация\\n{MONTH_NAMES[month]} {year}',
+            f'DESCRIPTION:у-к Автоматизация - {MONTH_NAMES[month]} {year}',
         ]
 
         if notify_before > 0:
@@ -1246,9 +1248,10 @@ def export_ics(year, month):
     content = '\r\n'.join(lines) + '\r\n'
 
     return Response(
-        content,
-        mimetype='text/calendar; charset=utf-8',
+        content.encode('utf-8'),
+        mimetype='text/calendar',
         headers={
+            'Content-Type': 'text/calendar; charset=utf-8',
             'Content-Disposition':
                 f'attachment; filename="grafik_{year}_{month:02d}.ics"'
         }
