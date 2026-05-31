@@ -146,6 +146,58 @@
 /* ── Навигация по месеци ──────────────────────── */
 .month-nav .btn { font-size: 0.85rem; }
 
+/* ── Мобилен календар ─────────────────────────── */
+.mobile-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+.mobile-cal-day {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(0,0,0,0.08);
+  min-height: 38px;
+}
+.mobile-cal-today {
+  outline: 2.5px solid #0d6efd !important;
+  outline-offset: -2px;
+}
+.mobile-cal-num {
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.mobile-cal-code {
+  font-size: 0.62rem;
+  line-height: 1;
+  font-weight: 700;
+}
+
+/* ── Мобилни подобрения ───────────────────────── */
+@media (max-width: 767px) {
+  .schedule-wrapper {
+    max-height: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .schedule-wrapper::after {
+    content: '← Плъзни за повече →';
+    display: block;
+    text-align: center;
+    font-size: 0.7rem;
+    color: #adb5bd;
+    padding: 4px 0;
+  }
+  .sched-cell, .sched-editable {
+    min-width: 26px;
+    min-height: 28px;
+    font-size: 0.72rem;
+  }
+}
+
 /* ── Маркиране на ред ─────────────────────────── */
 .schedule-table tbody tr.row-highlight .sticky-no {
   background: #fff3cd !important;

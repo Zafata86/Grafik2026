@@ -2,6 +2,204 @@
 {% block title %}Моят График – {{ month_name }} {{ year }}{% endblock %}
 
 {% block content %}
+
+{# ═══════════════════════════════════════════════════════════
+   МОБИЛЕН ИЗГЛЕД (< md)
+════════════════════════════════════════════════════════════ #}
+<div class="d-md-none">
+
+  {# Навигация по месеци #}
+  <div class="d-flex align-items-center justify-content-between mb-3 px-1">
+    <a href="/my-schedule/{{ py }}/{{ pm }}" class="btn btn-outline-primary px-3 py-2">
+      <i class="bi bi-chevron-left fs-5"></i>
+    </a>
+    <div class="text-center">
+      <div class="fw-bold fs-5">{{ month_name }} {{ year }}</div>
+      <div class="text-muted small">
+        <i class="bi bi-person-fill"></i> {{ user.name.split()[0] }}
+        &nbsp;·&nbsp;
+        <span class="badge bg-secondary">Смяна {{ user.smyana|upper }}</span>
+      </div>
+    </div>
+    <a href="/my-schedule/{{ ny }}/{{ nm }}" class="btn btn-outline-primary px-3 py-2">
+      <i class="bi bi-chevron-right fs-5"></i>
+    </a>
+  </div>
+
+  {# Часове #}
+  {% if settings %}
+  {% set th = target_hours(user.smyana, settings) %}
+  <div class="mb-3 p-2 rounded-3 text-center small
+    {% if th and my_hours < th %}bg-danger bg-opacity-10 border border-danger{% else %}bg-success bg-opacity-10 border border-success{% endif %}">
+    Отработени: <strong class="{% if th and my_hours < th %}text-danger{% else %}text-success{% endif %}">{{ my_hours }} ч.</strong>
+    {% if th %}&nbsp;/&nbsp;{{ th }} ч.{% endif %}
+  </div>
+  {% endif %}
+
+  {# Легенда #}
+  <div class="d-flex flex-wrap gap-1 mb-2">
+    <span class="legend-item cell-1">1–Дисп.</span>
+    <span class="legend-item cell-2">2–Нощна</span>
+    <span class="legend-item cell-8">8–Дневна</span>
+    <span class="legend-item cell-approved">Отпуска</span>
+    <span class="legend-item cell-planned">Планирана</span>
+    <span class="legend-item cell-sick">Б–Болничен</span>
+  </div>
+
+  {# Имена на дните #}
+  <div class="mobile-cal-grid mb-1">
+    {% for d, cls in [('Пн',''),('Вт',''),('Ср',''),('Чт',''),('Пт',''),('Сб','text-danger'),('Нд','text-danger')] %}
+    <div class="text-center small fw-semibold {{ cls }}">{{ d }}</div>
+    {% endfor %}
+  </div>
+
+  {# Календарна мрежа #}
+  <div class="mobile-cal-grid mb-3">
+    {# Празни клетки за офсет #}
+    {% for i in range(day_info[0][1]) %}<div></div>{% endfor %}
+
+    {% set today_day = today.day if today.year == year and today.month == month else 0 %}
+    {% for day, wday in day_info %}
+      {% set e = schedule.get(day) %}
+      {% set code = (e.code if e else '') or '' %}
+      {% set status = (e.leave_status if e else '') or 'normal' %}
+      {% if code == '0' and status == 'planned' %}{% set cls = 'cell-planned' %}
+      {% elif code == '0' %}{% set cls = 'cell-approved' %}
+      {% elif code == 'Б' %}{% set cls = 'cell-sick' %}
+      {% elif code == '1' %}{% set cls = 'cell-1' %}
+      {% elif code == '2' %}{% set cls = 'cell-2' %}
+      {% elif code == '8' %}{% set cls = 'cell-8' %}
+      {% elif code == 'Н' %}{% set cls = 'cell-n' %}
+      {% elif code == 'П' %}{% set cls = 'cell-p' %}
+      {% elif wday >= 5 %}{% set cls = 'cell-weekend-bg' %}
+      {% else %}{% set cls = '' %}
+      {% endif %}
+    <div class="mobile-cal-day {{ cls }} {% if day == today_day %}mobile-cal-today{% endif %}">
+      <span class="mobile-cal-num">{{ day }}</span>
+      {% if code %}
+      <span class="mobile-cal-code">
+        {%- if code == 'Б' and e and e.original_code -%}Б<sup>{{ e.original_code }}</sup>
+        {%- else -%}{{ code }}{%- endif -%}
+      </span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  {# Дни отпуска #}
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body text-center py-3">
+      <div class="display-4 fw-bold text-success">{{ user.vacation_days_remaining }}</div>
+      <div class="text-muted small">оставащи дни отпуска от {{ user.vacation_days_total }}</div>
+    </div>
+  </div>
+
+  {# Бутони за действие #}
+  <div class="d-grid gap-2 mb-3">
+    <a href="/request-vacation" class="btn btn-success btn-lg py-3">
+      <i class="bi bi-calendar-plus"></i> Заяви Отпуска
+    </a>
+    <a href="/request-change" class="btn btn-warning btn-lg py-3">
+      <i class="bi bi-arrow-left-right"></i> Промяна / Болничен
+    </a>
+  </div>
+
+  {# Заявки – сгъваеми #}
+  {% if change_requests %}
+  <div class="accordion mb-3" id="mobileChangesAcc">
+    <div class="accordion-item border-0 shadow-sm">
+      <h2 class="accordion-header">
+        <button class="accordion-button collapsed py-2" type="button"
+                data-bs-toggle="collapse" data-bs-target="#mobileChanges">
+          <i class="bi bi-arrow-left-right me-2"></i>
+          Заявки Промяна / Болничен
+          <span class="badge bg-secondary ms-2">{{ change_requests|length }}</span>
+        </button>
+      </h2>
+      <div id="mobileChanges" class="accordion-collapse collapse">
+        <div class="accordion-body p-0">
+          {% for cr in change_requests %}
+          <div class="border-bottom p-2 small">
+            <div class="d-flex justify-content-between align-items-center">
+              <span>
+                {% if cr.request_type == 'sick' %}
+                <span class="badge bg-warning text-dark"><i class="bi bi-hospital"></i> Болничен</span>
+                {% else %}
+                <span class="badge bg-info text-dark"><i class="bi bi-arrow-left-right"></i> Промяна</span>
+                {% endif %}
+              </span>
+              <span>
+                {% if cr.status == 'pending' %}<span class="badge bg-warning text-dark">Чака</span>
+                {% elif cr.status == 'approved' %}<span class="badge bg-success">Одобрена</span>
+                {% else %}<span class="badge bg-danger">Отхвърлена</span>{% endif %}
+              </span>
+            </div>
+            <div class="mt-1 text-muted">
+              {% for ch in cr.changes %}
+              <span class="badge bg-light text-dark border me-1">
+                {{ ch.date[5:] }}: {{ ch.from_code or '–' }}→<strong>{{ ch.to_code or 'Почивен' }}</strong>
+              </span>
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if vac_requests %}
+  <div class="accordion mb-3" id="mobileVacAcc">
+    <div class="accordion-item border-0 shadow-sm">
+      <h2 class="accordion-header">
+        <button class="accordion-button collapsed py-2" type="button"
+                data-bs-toggle="collapse" data-bs-target="#mobileVac">
+          <i class="bi bi-list-check me-2"></i>
+          Заявки за Отпуска
+          <span class="badge bg-secondary ms-2">{{ vac_requests|length }}</span>
+        </button>
+      </h2>
+      <div id="mobileVac" class="accordion-collapse collapse">
+        <div class="accordion-body p-0">
+          {% for r in vac_requests %}
+          <div class="border-bottom p-2 small d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-semibold">{{ r.date_from }} – {{ r.date_to }}</div>
+              <div class="text-muted">{{ r.days_count }} дни</div>
+            </div>
+            <div class="text-end">
+              {% if r.status == 'pending' %}
+                <span class="badge bg-warning text-dark">Чака</span>
+                <form method="POST" action="/vacation/{{ r.id }}/cancel" class="mt-1"
+                      onsubmit="return confirm('Анулирай?')">
+                  <button class="btn btn-outline-danger btn-sm py-0 px-1">
+                    <i class="bi bi-x-circle"></i>
+                  </button>
+                </form>
+              {% elif r.status == 'approved' %}
+                <span class="badge bg-success">Одобрена</span>
+              {% elif r.status == 'cancelled' %}
+                <span class="badge bg-secondary">Анулирана</span>
+              {% else %}
+                <span class="badge bg-danger">Отхвърлена</span>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>{# end d-md-none #}
+
+
+{# ═══════════════════════════════════════════════════════════
+   ДЕСКТОП ИЗГЛЕД (≥ md)
+════════════════════════════════════════════════════════════ #}
+<div class="d-none d-md-block">
 <div class="row g-3">
   {# Лява колона – График #}
   <div class="col-12">
@@ -221,4 +419,6 @@
     </div>
   </div>
 </div>
+</div>{# end d-none d-md-block #}
+
 {% endblock %}
