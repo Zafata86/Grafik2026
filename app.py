@@ -488,70 +488,50 @@ def request_vacation():
         if from_date > to_date:
             flash('Началната дата трябва да е преди крайната.', 'danger')
         else:
-            # Проверка за почивни/празнични дни
-            bad_days = []
-            current = from_date
-            while current <= to_date:
-                if current.weekday() >= 5:
-                    names = ['Пн','Вт','Ср','Чт','Пт','Сб','Нд']
-                    bad_days.append(f'{current.strftime("%d.%m")} ({names[current.weekday()]})')
-                elif current.isoformat() in holidays_set:
-                    bad_days.append(f'{current.strftime("%d.%m")} (празник)')
-                current += timedelta(days=1)
-
-            if bad_days:
+            days_count = count_working_days(from_date, to_date, holidays_set)
+            if days_count == 0:
+                flash('Няма работни дни в избрания период.', 'danger')
+            elif user['vacation_days_remaining'] < days_count:
                 flash(
-                    'Периодът включва почивни/празнични дни: '
-                    + ', '.join(bad_days[:5])
-                    + (f' и още {len(bad_days)-5}...' if len(bad_days) > 5 else '')
-                    + '. Моля изберете само работни дни.',
-                    'danger'
+                    f'Нямате достатъчно дни отпуска. '
+                    f'Оставащи: {user["vacation_days_remaining"]}, нужни: {days_count}.', 'danger'
                 )
             else:
-                days_count = count_working_days(from_date, to_date, holidays_set)
-                if days_count == 0:
-                    flash('Няма работни дни в избрания период.', 'danger')
-                elif user['vacation_days_remaining'] < days_count:
+                overlap = db.execute(
+                    '''SELECT date_from, date_to FROM vacation_requests
+                       WHERE employee_id=? AND status IN ('pending','approved')
+                       AND date_from <= ? AND date_to >= ?''',
+                    (session['user_id'], date_to_str, date_from_str)
+                ).fetchone()
+                if overlap:
                     flash(
-                        f'Нямате достатъчно дни отпуска. '
-                        f'Оставащи: {user["vacation_days_remaining"]}, нужни: {days_count}.', 'danger'
+                        f'Вече имате активна заявка за отпуска, която се застъпва с избрания период '
+                        f'({overlap["date_from"]} – {overlap["date_to"]}). '
+                        f'Анулирайте я преди да подадете нова.',
+                        'danger'
                     )
                 else:
-                    overlap = db.execute(
-                        '''SELECT date_from, date_to FROM vacation_requests
-                           WHERE employee_id=? AND status IN ('pending','approved')
-                           AND date_from <= ? AND date_to >= ?''',
-                        (session['user_id'], date_to_str, date_from_str)
-                    ).fetchone()
-                    if overlap:
-                        flash(
-                            f'Вече имате активна заявка за отпуска, която се застъпва с избрания период '
-                            f'({overlap["date_from"]} – {overlap["date_to"]}). '
-                            f'Анулирайте я преди да подадете нова.',
-                            'danger'
-                        )
-                    else:
-                        db.execute(
-                            '''INSERT INTO vacation_requests
-                               (employee_id, date_from, date_to, days_count, status, requested_at, comment)
-                               VALUES (?, ?, ?, ?, 'pending', ?, ?)''',
-                            (session['user_id'], date_from_str, date_to_str, days_count,
-                             datetime.now().isoformat(), comment)
-                        )
-                        current = from_date
-                        while current <= to_date:
-                            if current.weekday() < 5 and current.isoformat() not in holidays_set:
-                                db.execute(
-                                    '''INSERT OR REPLACE INTO schedule_entries
-                                       (employee_id, year, month, day, code, leave_status)
-                                       VALUES (?, ?, ?, ?, '0', 'planned')''',
-                                    (session['user_id'], current.year, current.month, current.day)
-                                )
-                            current += timedelta(days=1)
-                        db.commit()
-                        db.close()
-                        flash(f'Заявката е изпратена ({days_count} работни дни). Очаква одобрение.', 'success')
-                        return redirect(url_for('my_schedule'))
+                    db.execute(
+                        '''INSERT INTO vacation_requests
+                           (employee_id, date_from, date_to, days_count, status, requested_at, comment)
+                           VALUES (?, ?, ?, ?, 'pending', ?, ?)''',
+                        (session['user_id'], date_from_str, date_to_str, days_count,
+                         datetime.now().isoformat(), comment)
+                    )
+                    current = from_date
+                    while current <= to_date:
+                        if current.weekday() < 5 and current.isoformat() not in holidays_set:
+                            db.execute(
+                                '''INSERT OR REPLACE INTO schedule_entries
+                                   (employee_id, year, month, day, code, leave_status)
+                                   VALUES (?, ?, ?, ?, '0', 'planned')''',
+                                (session['user_id'], current.year, current.month, current.day)
+                            )
+                        current += timedelta(days=1)
+                    db.commit()
+                    db.close()
+                    flash(f'Заявката е изпратена ({days_count} работни дни). Очаква одобрение.', 'success')
+                    return redirect(url_for('my_schedule'))
 
     # Holidays list for flatpickr (current + next year)
     today = date.today()
