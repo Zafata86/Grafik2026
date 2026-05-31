@@ -165,6 +165,29 @@ def ensure_schema():
     except Exception:
         pass
 
+    # Попълни original_code за съществуващи Б записи без него
+    sick_rows = db.execute(
+        "SELECT id, employee_id, year, month, day FROM schedule_entries "
+        "WHERE code='Б' AND (original_code IS NULL OR original_code='')"
+    ).fetchall()
+    for row in sick_rows:
+        # Търси най-близкия работен ден (±7 дни) за същия служител
+        nearby = db.execute(
+            """SELECT code FROM schedule_entries
+               WHERE employee_id=? AND code IN ('1','2','8')
+                 AND ABS((year*10000+month*100+day) - (?*10000+?*100+?)) <= 7
+               ORDER BY ABS((year*10000+month*100+day) - (?*10000+?*100+?))
+               LIMIT 1""",
+            (row['employee_id'],
+             row['year'], row['month'], row['day'],
+             row['year'], row['month'], row['day'])
+        ).fetchone()
+        if nearby:
+            db.execute(
+                "UPDATE schedule_entries SET original_code=? WHERE id=?",
+                (nearby['code'], row['id'])
+            )
+
     db.execute('''CREATE TABLE IF NOT EXISTS schedule_change_requests (
         id               INTEGER PRIMARY KEY AUTOINCREMENT,
         employee_id      INTEGER NOT NULL,
