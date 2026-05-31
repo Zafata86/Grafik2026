@@ -92,7 +92,7 @@ function recalcRow(row) {
     const c = cell.dataset.code || '';
     if (c === 'Б') {
       const orig = cell.dataset.originalCode || '';
-      total += HOURS_MAP[orig] || 0;
+      total += HOURS_MAP[orig] !== undefined ? HOURS_MAP[orig] : 12;
     } else if (HOURS_MAP[c] !== undefined) {
       total += HOURS_MAP[c];
     }

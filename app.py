@@ -77,9 +77,10 @@ def calc_hours(schedule_for_emp):
                 orig = e['original_code'] or ''
             except (IndexError, TypeError):
                 orig = ''
-            if orig == '1':   total += 12
-            elif orig == '2': total += 13.143
-            elif orig == '8': total += 8
+            if orig == '1':        total += 12
+            elif orig == '2':      total += 13.143
+            elif orig == '8':      total += 8
+            else:                  total += 12  # няма original_code → приема се диспечерска
         elif code == 'Н': total += 8
     return round(total, 1)
 
