@@ -21,13 +21,15 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE TABLE IF NOT EXISTS schedule_entries (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    employee_id INTEGER NOT NULL,
-    year        INTEGER NOT NULL,
-    month       INTEGER NOT NULL,
-    day         INTEGER NOT NULL,
-    code        TEXT    DEFAULT '',
-    leave_status TEXT   DEFAULT 'normal',
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    employee_id   INTEGER NOT NULL,
+    year          INTEGER NOT NULL,
+    month         INTEGER NOT NULL,
+    day           INTEGER NOT NULL,
+    code          TEXT    DEFAULT '',
+    leave_status  TEXT    DEFAULT 'normal',
+    original_code TEXT    DEFAULT NULL,
+    plan_code     TEXT    DEFAULT NULL,
     FOREIGN KEY (employee_id) REFERENCES users(id),
     UNIQUE(employee_id, year, month, day)
 );
