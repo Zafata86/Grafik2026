@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS month_settings (
 # Администратори (имат достъп до редакция)
 ADMINS = [
     ('389',  'Даниел Маринов Динев',   'Р', 'daniel',  'Admin2026', 'admin'),
-    ('5252', 'Михаил Зафиров Зафиров', 'Д', 'mihail',  'Admin2026', 'admin'),
+    ('5252', 'Михаил Зафиров Зафиров', 'Д', 'mihail',  'Admin2026', 'superadmin'),
     ('4413', 'Илияна Рускова Зафирова','Д', 'iliyana', 'Admin2026', 'admin'),
 ]
 

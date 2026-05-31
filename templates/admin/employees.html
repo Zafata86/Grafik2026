@@ -34,7 +34,9 @@
             <span class="badge bg-secondary sm-{{ emp.smyana|upper }}">{{ emp.smyana|upper }}</span>
           </td>
           <td class="text-center">
-            {% if emp.role == 'admin' %}
+            {% if emp.role == 'superadmin' %}
+              <span class="badge bg-warning text-dark"><i class="bi bi-shield-fill-check"></i> Супер Админ</span>
+            {% elif emp.role == 'admin' %}
               <span class="badge bg-danger">Админ</span>
             {% else %}
               <span class="badge bg-secondary">Служител</span>
@@ -90,13 +92,16 @@
                       <input type="number" name="vacation_days_remaining" class="form-control form-control-sm"
                              value="{{ emp.vacation_days_remaining }}" min="0" max="365">
                     </div>
+                    {% if is_superadmin %}
                     <div class="col-6">
                       <label class="form-label small">Роля</label>
                       <select name="role" class="form-select form-select-sm">
                         <option value="employee" {% if emp.role == 'employee' %}selected{% endif %}>Служител</option>
                         <option value="admin" {% if emp.role == 'admin' %}selected{% endif %}>Администратор</option>
+                        <option value="superadmin" {% if emp.role == 'superadmin' %}selected{% endif %}>Супер Админ</option>
                       </select>
                     </div>
+                    {% endif %}
                     <div class="col-12">
                       <label class="form-label small">Нова парола (оставете празно за без промяна)</label>
                       <input type="password" name="password" class="form-control form-control-sm"
@@ -152,6 +157,9 @@
               <select name="role" class="form-select form-select-sm">
                 <option value="employee">Служител</option>
                 <option value="admin">Администратор</option>
+                {% if is_superadmin %}
+                <option value="superadmin">Супер Админ</option>
+                {% endif %}
               </select>
             </div>
             <div class="col-4">

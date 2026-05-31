@@ -57,7 +57,19 @@ def admin_required(f):
     def decorated(*args, **kwargs):
         if 'user_id' not in session:
             return redirect(url_for('login'))
-        if session.get('role') != 'admin':
+        if session.get('role') not in ('admin', 'superadmin'):
+            flash('Нямате право за достъп!', 'danger')
+            return redirect(url_for('dashboard'))
+        return f(*args, **kwargs)
+    return decorated
+
+
+def superadmin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        if session.get('role') != 'superadmin':
             flash('Нямате право за достъп!', 'danger')
             return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
@@ -203,6 +215,8 @@ def ensure_schema():
         """)
         db.execute("INSERT OR REPLACE INTO app_settings (key,value) VALUES ('plan_code_migration_done','1')")
 
+    # Михаил Зафиров → superadmin
+    db.execute("UPDATE users SET role='superadmin' WHERE tab_number='5252' AND role IN ('admin','employee')")
 
     db.execute('''CREATE TABLE IF NOT EXISTS schedule_change_requests (
         id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -264,7 +278,8 @@ def nav_months(year, month):
 def inject_globals():
     pending = 0
     pending_changes = 0
-    if 'user_id' in session and session.get('role') == 'admin':
+    role = session.get('role', '')
+    if 'user_id' in session and role in ('admin', 'superadmin'):
         db = get_db()
         pending = db.execute(
             "SELECT COUNT(*) FROM vacation_requests WHERE status='pending'"
@@ -273,8 +288,12 @@ def inject_globals():
             "SELECT COUNT(*) FROM schedule_change_requests WHERE status='pending'"
         ).fetchone()[0]
         db.close()
-    return {'pending_count': pending, 'pending_changes_count': pending_changes,
-            'MONTH_NAMES': MONTH_NAMES}
+    return {
+        'pending_count': pending,
+        'pending_changes_count': pending_changes,
+        'MONTH_NAMES': MONTH_NAMES,
+        'is_superadmin': role == 'superadmin',
+    }
 
 
 # ── AUTH ───────────────────────────────────────────────────────────────────────
@@ -971,15 +990,29 @@ def add_employee():
 def edit_employee(emp_id):
     name = request.form['name'].strip()
     smyana = request.form['smyana'].strip().upper()
-    role = request.form.get('role', 'employee')
     vac_total = int(request.form.get('vacation_days_total', 20))
     vac_remaining = int(request.form.get('vacation_days_remaining', 20))
 
     db = get_db()
+    cur_emp = db.execute('SELECT role FROM users WHERE id=?', (emp_id,)).fetchone()
+
+    # Само superadmin може да сменя ролята
+    if session.get('role') == 'superadmin':
+        new_role = request.form.get('role', cur_emp['role'] if cur_emp else 'employee')
+        # Не позволяваме да се маха последния superadmin
+        if cur_emp and cur_emp['role'] == 'superadmin' and new_role != 'superadmin':
+            sa_count = db.execute("SELECT COUNT(*) FROM users WHERE role='superadmin'").fetchone()[0]
+            if sa_count <= 1:
+                flash('Не може да се премахне последния супер администратор.', 'danger')
+                db.close()
+                return redirect(url_for('admin_employees'))
+    else:
+        new_role = cur_emp['role'] if cur_emp else 'employee'
+
     db.execute(
         '''UPDATE users SET name=?, smyana=?, role=?,
            vacation_days_total=?, vacation_days_remaining=? WHERE id=?''',
-        (name, smyana, role, vac_total, vac_remaining, emp_id)
+        (name, smyana, new_role, vac_total, vac_remaining, emp_id)
     )
     pw = request.form.get('password', '').strip()
     if pw:

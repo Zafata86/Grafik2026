@@ -36,10 +36,15 @@
         <li class="nav-item">
           <a class="nav-link" href="/settings"><i class="bi bi-bell"></i> Напомняния</a>
         </li>
-        {% if session.role == 'admin' %}
+        {% if session.role in ('admin', 'superadmin') %}
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-            <i class="bi bi-gear-fill"></i> Администрация
+            <i class="bi bi-gear-fill"></i>
+            {% if is_superadmin %}
+              <span class="badge bg-warning text-dark">Супер Админ</span>
+            {% else %}
+              Администрация
+            {% endif %}
             {% set total_pending = pending_count + pending_changes_count %}
             {% if total_pending > 0 %}
             <span class="badge bg-danger rounded-pill">{{ total_pending }}</span>

@@ -101,7 +101,7 @@
       </div>
     </div>
 
-    {% if session.role == 'admin' %}
+    {% if session.role in ('admin', 'superadmin') %}
     {# Настройки за времената на смените – само за администратори #}
     <div class="card shadow-sm border-0 mt-3">
       <div class="card-header bg-warning">

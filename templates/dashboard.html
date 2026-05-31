@@ -13,7 +13,7 @@
   <a href="/dashboard/{{ ny }}/{{ nm }}" class="btn btn-sm btn-outline-secondary">
     {{ MONTH_NAMES[nm] }} <i class="bi bi-chevron-right"></i>
   </a>
-  {% if session.role == 'admin' %}
+  {% if session.role in ('admin', 'superadmin') %}
   <a href="/admin/schedule/{{ year }}/{{ month }}" class="btn btn-sm btn-warning ms-auto">
     <i class="bi bi-pencil-square"></i> Редактирай
   </a>
