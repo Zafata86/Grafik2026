@@ -285,6 +285,13 @@ def status():
         users = db.execute('SELECT COUNT(*) FROM users').fetchone()[0]
         entries = db.execute('SELECT COUNT(*) FROM schedule_entries').fetchone()[0]
         months = db.execute('SELECT COUNT(*) FROM month_settings').fetchone()[0]
+        sick_total = db.execute("SELECT COUNT(*) FROM schedule_entries WHERE code='Б'").fetchone()[0]
+        sick_with_orig = db.execute(
+            "SELECT COUNT(*) FROM schedule_entries WHERE code='Б' AND original_code IS NOT NULL AND original_code != ''"
+        ).fetchone()[0]
+        mig1 = db.execute("SELECT value FROM app_settings WHERE key='migration_sick_orig_done'").fetchone()
+        mig2 = db.execute("SELECT value FROM app_settings WHERE key='migration_sick_orig_done2'").fetchone()
+        smyani = db.execute("SELECT smyana, COUNT(*) as cnt FROM users GROUP BY smyana").fetchall()
         db.close()
         return jsonify({
             'ok': True,
@@ -292,6 +299,12 @@ def status():
             'users': users,
             'schedule_entries': entries,
             'month_settings': months,
+            'sick_total': sick_total,
+            'sick_with_original_code': sick_with_orig,
+            'sick_without_original_code': sick_total - sick_with_orig,
+            'migration_sick_orig_done': mig1['value'] if mig1 else None,
+            'migration_sick_orig_done2': mig2['value'] if mig2 else None,
+            'smyani': {r['smyana']: r['cnt'] for r in smyani},
         })
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e), 'db_path': DB_PATH}), 500
