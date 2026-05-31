@@ -48,13 +48,16 @@ function applyCodeToCell(cell, code, originalCode) {
     cell.classList.add('cell-weekend-bg');
   }
   cell.dataset.code = code;
-  if (code === 'Б' && originalCode != null) {
-    cell.dataset.originalCode = originalCode;
-    cell.innerHTML = originalCode
-      ? 'Б<sup class="orig-sup">' + originalCode + '</sup>'
-      : 'Б';
+  if (code === 'Б') {
+    if (originalCode) {
+      cell.dataset.originalCode = originalCode;
+      cell.innerHTML = 'Б<sup class="orig-sup">' + originalCode + '</sup>';
+    } else {
+      delete cell.dataset.originalCode;
+      cell.textContent = '';
+    }
   } else {
-    if (code !== 'Б') delete cell.dataset.originalCode;
+    delete cell.dataset.originalCode;
     cell.textContent = code;
   }
   recalcRow(cell.closest('tr'));
@@ -95,7 +98,7 @@ function recalcRow(row) {
     const c = cell.dataset.code || '';
     if (c === 'Б') {
       const orig = cell.dataset.originalCode || '';
-      total += HOURS_MAP[orig] !== undefined ? HOURS_MAP[orig] : 12;
+      total += HOURS_MAP[orig] || 0;
     } else if (HOURS_MAP[c] !== undefined) {
       total += HOURS_MAP[c];
     }

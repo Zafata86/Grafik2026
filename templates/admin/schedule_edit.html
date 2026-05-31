@@ -135,8 +135,8 @@
             data-code="{{ code }}"
             data-original-code="{{ (e.original_code or '') if e and code == 'Б' else '' }}"
             data-weekend="{{ 'true' if wday >= 5 else 'false' }}">
-            {%- if code == 'Б' and e and e.original_code -%}
-              Б<sup class="orig-sup">{{ e.original_code }}</sup>
+            {%- if code == 'Б' -%}
+              {%- if e and e.original_code -%}Б<sup class="orig-sup">{{ e.original_code }}</sup>{%- endif -%}
             {%- else -%}{{ code }}{%- endif -%}
           </td>
         {% endfor %}
