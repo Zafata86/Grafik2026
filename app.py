@@ -164,16 +164,17 @@ def ensure_schema():
         db.execute('ALTER TABLE schedule_entries ADD COLUMN original_code TEXT DEFAULT NULL')
     except Exception:
         pass
-    # Изчисти грешно авто-попълнен original_code (от стара миграция по ±7 дни)
-    db.execute(
-        "UPDATE schedule_entries SET original_code=NULL "
-        "WHERE code='Б' AND original_code IN ('1','2','8')"
-    )
-    # Попълни original_code за Б записи като сравни с колега от същата смяна
+    # Еднократна миграция: попълни original_code за Б записи
     already = db.execute(
-        "SELECT value FROM app_settings WHERE key='migration_sick_orig_done'"
+        "SELECT value FROM app_settings WHERE key='migration_sick_orig_done2'"
     ).fetchone()
     if not already:
+        # Изчисти стари грешно попълнени стойности (от предишна миграция по ±7 дни)
+        db.execute(
+            "UPDATE schedule_entries SET original_code=NULL "
+            "WHERE code='Б' AND original_code IN ('1','2','8')"
+        )
+        # Попълни original_code като сравни с колега от същата смяна
         db.execute("""
             UPDATE schedule_entries
             SET original_code = (
@@ -193,7 +194,7 @@ def ensure_schema():
               AND (original_code IS NULL OR original_code = '')
         """)
         db.execute(
-            "INSERT OR REPLACE INTO app_settings (key,value) VALUES ('migration_sick_orig_done','1')"
+            "INSERT OR REPLACE INTO app_settings (key,value) VALUES ('migration_sick_orig_done2','1')"
         )
 
 
