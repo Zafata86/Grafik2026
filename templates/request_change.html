@@ -124,6 +124,7 @@
                               class="form-select border-0 p-0 text-center change-sel"
                               style="min-width:36px; font-size:0.78rem; height:32px">
                         <option value=""> </option>
+                        <option value="_REST_">×</option>
                         <option value="1">1</option>
                         <option value="2">2</option>
                         <option value="8">8</option>
@@ -140,7 +141,7 @@
             </div>
             <div class="text-muted small mb-3">
               <i class="bi bi-info-circle"></i>
-              Горният ред е текущият ви график. В долния ред изберете само дните, които искате да промените (оставете <strong>–</strong> за дните без промяна).
+              Горният ред е текущият ви график. В долния ред изберете само дните, които искате да промените. Оставете <strong>празно</strong> за без промяна. Изберете <strong style="color:#c0392b">×</strong> за да изтриете смяната от деня.
             </div>
           </div>
 
@@ -194,9 +195,14 @@
   // Оцвети избраните клетки в долния ред
   document.querySelectorAll('.change-sel').forEach(sel => {
     sel.addEventListener('change', function () {
-      const colors = {'1':'#ffd700','2':'#6fa8dc','8':'#93c47d','0':'#92D050',
-                      'Б':'#ffff00','Н':'#e06666','П':'#b7b7b7','':`''`};
+      const colors = {
+        '1':'#BDD7EE','2':'#8EA9C1','8':'#E2EFDA','0':'#92D050',
+        'Б':'#FFFF00','Н':'#FF6B6B','П':'#D9D9D9',
+        '_REST_':'#ffcccc',
+      };
       this.style.backgroundColor = colors[this.value] || '';
+      this.style.fontWeight = this.value === '_REST_' ? 'bold' : '';
+      this.style.color = this.value === '_REST_' ? '#c0392b' : '';
     });
   });
 </script>
