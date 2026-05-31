@@ -555,9 +555,10 @@ def request_change():
             for d in range(1, days_in_month + 1):
                 new_code = request.form.get(f'day_{d}', '').strip()
                 if new_code:
+                    to_code = '' if new_code == '_REST_' else new_code
                     changes.append({'date': f'{year:04d}-{month:02d}-{d:02d}',
                                     'from_code': current.get(d, ''),
-                                    'to_code': new_code})
+                                    'to_code': to_code})
 
         if not changes:
             flash('Не сте избрали нито един ден за промяна.', 'warning')

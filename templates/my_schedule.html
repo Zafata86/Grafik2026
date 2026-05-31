@@ -140,7 +140,7 @@
                 {% for ch in cr.changes %}
                   <span class="badge bg-light text-dark border me-1">
                     {{ ch.date[5:] }}:
-                    <span class="text-muted">{{ ch.from_code or '–' }}</span>→<strong>{{ ch.to_code }}</strong>
+                    <span class="text-muted">{{ ch.from_code or '–' }}</span>→<strong>{{ ch.to_code if ch.to_code else 'Почивен' }}</strong>
                   </span>
                 {% endfor %}
               </td>

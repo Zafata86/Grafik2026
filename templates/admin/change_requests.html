@@ -48,7 +48,7 @@
                 {{ ch.date[5:] }}:
                 <span class="text-secondary">{{ ch.from_code or '–' }}</span>
                 <i class="bi bi-arrow-right"></i>
-                <strong>{{ ch.to_code }}</strong>
+                <strong>{{ ch.to_code if ch.to_code else 'Почивен' }}</strong>
               </span>
               {% endfor %}
             </div>
