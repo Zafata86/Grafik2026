@@ -72,7 +72,14 @@ def calc_hours(schedule_for_emp):
         elif code == '2': total += 13.143
         elif code == '8': total += 8
         elif code == '0': total += 8
-        elif code == 'Б': total += 0
+        elif code == 'Б':
+            try:
+                orig = e['original_code'] or ''
+            except (IndexError, TypeError):
+                orig = ''
+            if orig == '1':   total += 12
+            elif orig == '2': total += 13.143
+            elif orig == '8': total += 8
         elif code == 'Н': total += 8
     return round(total, 1)
 
@@ -151,6 +158,11 @@ def ensure_schema():
                 db.execute('INSERT INTO holidays (date,name) VALUES (?,?)', (d, n))
             except Exception:
                 pass
+
+    try:
+        db.execute('ALTER TABLE schedule_entries ADD COLUMN original_code TEXT DEFAULT NULL')
+    except Exception:
+        pass
 
     db.execute('''CREATE TABLE IF NOT EXISTS schedule_change_requests (
         id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -736,6 +748,22 @@ def admin_schedule_cell():
         db.execute(
             'DELETE FROM schedule_entries WHERE employee_id=? AND year=? AND month=? AND day=?',
             (emp_id, year, month, day)
+        )
+    elif code == 'Б':
+        # Запазваме оригиналния код (от JS или от DB) за да знаем часовете
+        orig = data.get('original_code', '').strip()
+        if not orig:
+            cur = db.execute(
+                'SELECT code FROM schedule_entries WHERE employee_id=? AND year=? AND month=? AND day=?',
+                (emp_id, year, month, day)
+            ).fetchone()
+            if cur and cur['code'] and cur['code'] not in ('Б', '0', '', None):
+                orig = cur['code']
+        db.execute(
+            '''INSERT OR REPLACE INTO schedule_entries
+               (employee_id, year, month, day, code, leave_status, original_code)
+               VALUES (?, ?, ?, ?, 'Б', 'normal', ?)''',
+            (emp_id, year, month, day, orig or None)
         )
     else:
         leave_status = 'approved' if code == '0' else 'normal'

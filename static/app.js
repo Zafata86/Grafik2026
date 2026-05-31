@@ -40,7 +40,7 @@ function setActive(cell) {
   }
 }
 
-function applyCodeToCell(cell, code) {
+function applyCodeToCell(cell, code, originalCode) {
   ALL_CELL_CLASSES.forEach(c => cell.classList.remove(c));
   if (code && COLOR_MAP[code]) {
     cell.classList.add(COLOR_MAP[code]);
@@ -48,11 +48,17 @@ function applyCodeToCell(cell, code) {
     cell.classList.add('cell-weekend-bg');
   }
   cell.dataset.code = code;
+  if (code === 'Б' && originalCode != null) {
+    cell.dataset.originalCode = originalCode;
+  } else if (code !== 'Б') {
+    delete cell.dataset.originalCode;
+  }
   cell.textContent = code;
   recalcRow(cell.closest('tr'));
 }
 
 async function saveCell(cell, code) {
+  const prevCode = cell.dataset.code || '';
   const payload = {
     employee_id: parseInt(cell.dataset.empId),
     year:  parseInt(cell.dataset.year),
@@ -60,6 +66,9 @@ async function saveCell(cell, code) {
     day:   parseInt(cell.dataset.day),
     code,
   };
+  if (code === 'Б') {
+    payload.original_code = prevCode;
+  }
   const resp = await fetch('/admin/schedule/cell', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -70,7 +79,7 @@ async function saveCell(cell, code) {
     alert(data.msg);
     return false;
   }
-  applyCodeToCell(cell, code);
+  applyCodeToCell(cell, code, code === 'Б' ? prevCode : null);
   return true;
 }
 
@@ -81,7 +90,12 @@ function recalcRow(row) {
   let total = 0;
   row.querySelectorAll('.sched-editable').forEach(cell => {
     const c = cell.dataset.code || '';
-    if (HOURS_MAP[c] !== undefined) total += HOURS_MAP[c];
+    if (c === 'Б') {
+      const orig = cell.dataset.originalCode || '';
+      total += HOURS_MAP[orig] || 0;
+    } else if (HOURS_MAP[c] !== undefined) {
+      total += HOURS_MAP[c];
+    }
   });
   total = Math.round(total * 10) / 10;
 
