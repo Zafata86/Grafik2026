@@ -110,20 +110,27 @@
       <div class="card-body">
         <form method="POST" action="/admin/shift-times">
           <div class="row g-2">
-            {% for code, label in [('1','Диспечерска (1)'), ('2','Нощна (2)'), ('8','Дневна (8)')] %}
+            {% for code, label, def_start, def_end in [
+                ('1','Диспечерска (1)','07:00','20:00'),
+                ('2','Нощна (2)',      '19:00','08:00'),
+                ('8','Дневна (8)',     '07:00','16:15')
+            ] %}
             <div class="col-12">
               <label class="form-label small fw-semibold mb-1">{{ label }}</label>
               <div class="input-group input-group-sm">
                 <span class="input-group-text">Начало</span>
                 <input type="time" name="shift_{{ code }}_start" class="form-control"
-                       value="{{ shift_times.get('shift_' ~ code ~ '_start', '08:00') }}">
-                <span class="input-group-text">Продължителност (ч.)</span>
-                <input type="number" name="shift_{{ code }}_hours" class="form-control"
-                       value="{{ shift_times.get('shift_' ~ code ~ '_hours', '8') }}"
-                       min="1" max="24" style="max-width:70px">
+                       value="{{ shift_times.get('shift_' ~ code ~ '_start', def_start) }}">
+                <span class="input-group-text">Край</span>
+                <input type="time" name="shift_{{ code }}_end" class="form-control"
+                       value="{{ shift_times.get('shift_' ~ code ~ '_end', def_end) }}">
               </div>
             </div>
             {% endfor %}
+          </div>
+          <div class="text-muted small mt-2">
+            <i class="bi bi-info-circle"></i>
+            Нощната смяна свършва на следващия ден (19:00 → 08:00 следващата сутрин).
           </div>
           <button type="submit" class="btn btn-sm btn-warning mt-3">
             <i class="bi bi-save"></i> Запази

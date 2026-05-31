@@ -130,9 +130,9 @@ def ensure_schema():
         key TEXT PRIMARY KEY, value TEXT
     )''')
     for k, v in [
-        ('shift_1_start', '07:00'), ('shift_1_hours', '12'),
-        ('shift_2_start', '19:00'), ('shift_2_hours', '12'),
-        ('shift_8_start', '08:00'), ('shift_8_hours', '8'),
+        ('shift_1_start', '07:00'), ('shift_1_end', '20:00'),
+        ('shift_2_start', '19:00'), ('shift_2_end', '08:00'),
+        ('shift_8_start', '07:00'), ('shift_8_end', '16:15'),
     ]:
         try:
             db.execute('INSERT INTO app_settings (key,value) VALUES (?,?)', (k, v))
@@ -1102,10 +1102,10 @@ def user_settings():
 @admin_required
 def admin_shift_times():
     db = get_db()
-    for key in ['shift_1_start', 'shift_1_hours',
-                'shift_2_start', 'shift_2_hours',
-                'shift_8_start', 'shift_8_hours']:
-        val = request.form.get(key, '')
+    for key in ['shift_1_start', 'shift_1_end',
+                'shift_2_start', 'shift_2_end',
+                'shift_8_start', 'shift_8_end']:
+        val = request.form.get(key, '').strip()
         if val:
             db.execute('INSERT OR REPLACE INTO app_settings (key,value) VALUES (?,?)',
                        (key, val))
@@ -1176,18 +1176,21 @@ def export_ics(year, month):
             continue
 
         key_start = f'shift_{code}_start'
-        key_hours = f'shift_{code}_hours'
+        key_end   = f'shift_{code}_end'
         if key_start not in shift_times:
             continue
 
         try:
             sh, sm_v = map(int, shift_times[key_start].split(':'))
-            duration_h = float(shift_times[key_hours])
+            eh, em_v = map(int, shift_times.get(key_end, '').split(':'))
         except Exception:
-            sh, sm_v, duration_h = 8, 0, 8.0
+            sh, sm_v, eh, em_v = 7, 0, 19, 0
 
         shift_start = datetime(year, month, day, sh, sm_v)
-        shift_end = shift_start + timedelta(hours=duration_h)
+        shift_end   = datetime(year, month, day, eh, em_v)
+        # нощна смяна — краят е на следващия ден
+        if shift_end <= shift_start:
+            shift_end += timedelta(days=1)
         code_name = CODE_NAMES.get(code, code)
 
         dtstart = shift_start.strftime('%Y%m%dT%H%M%S')
