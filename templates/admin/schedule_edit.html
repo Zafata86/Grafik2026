@@ -6,6 +6,9 @@
   <h5 class="mb-0">
     <i class="bi bi-pencil-square text-warning"></i>
     Редакция на График &nbsp;–&nbsp; <strong>{{ month_name }} {{ year }}</strong>
+    {% if is_locked %}
+    <span class="badge bg-danger ms-1"><i class="bi bi-lock-fill"></i> Заключен</span>
+    {% endif %}
   </h5>
   <a href="/admin/schedule/{{ py }}/{{ pm }}" class="btn btn-sm btn-outline-secondary">
     <i class="bi bi-chevron-left"></i> {{ MONTH_NAMES[pm] }}
@@ -16,7 +19,37 @@
   <a href="/dashboard/{{ year }}/{{ month }}" class="btn btn-sm btn-outline-primary ms-auto">
     <i class="bi bi-eye"></i> Преглед
   </a>
+  <form method="POST" action="/admin/schedule/{{ year }}/{{ month }}/lock" class="d-inline">
+    {% if is_locked %}
+    <button type="submit" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-unlock"></i> Отключи
+    </button>
+    {% else %}
+    <button type="submit" class="btn btn-sm btn-success">
+      <i class="bi bi-lock"></i> Заключи График
+    </button>
+    {% endif %}
+  </form>
 </div>
+
+{% if amendment_needed %}
+<div class="alert alert-warning d-flex align-items-center gap-3 py-2 mb-3" role="alert">
+  <i class="bi bi-exclamation-triangle-fill fs-5 flex-shrink-0"></i>
+  <div class="flex-grow-1">
+    <strong>Необходима е официална Промяна на График!</strong><br>
+    <span class="small">Одобрени са заявки за промяна по заключен график за
+      <strong>{{ month_name }} {{ year }}</strong>.
+      Изпратете официален документ до ръководството, след което отбележете като изпратено.</span>
+  </div>
+  <form method="POST" action="/admin/schedule/amendment-done" class="flex-shrink-0">
+    <input type="hidden" name="year" value="{{ year }}">
+    <input type="hidden" name="month" value="{{ month }}">
+    <button type="submit" class="btn btn-sm btn-warning">
+      <i class="bi bi-check-circle"></i> Изпратена
+    </button>
+  </form>
+</div>
+{% endif %}
 
 {# Форма за часове #}
 <div class="card shadow-sm border-0 mb-3">

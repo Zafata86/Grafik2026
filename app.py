@@ -278,6 +278,7 @@ def nav_months(year, month):
 def inject_globals():
     pending = 0
     pending_changes = 0
+    amendment_months = []
     role = session.get('role', '')
     if 'user_id' in session and role in ('admin', 'superadmin'):
         db = get_db()
@@ -287,10 +288,23 @@ def inject_globals():
         pending_changes = db.execute(
             "SELECT COUNT(*) FROM schedule_change_requests WHERE status='pending'"
         ).fetchone()[0]
+        rows = db.execute(
+            "SELECT key FROM app_settings WHERE key LIKE 'amendment_needed_%'"
+        ).fetchall()
+        for r in rows:
+            parts = r['key'].split('_')
+            if len(parts) == 4:
+                try:
+                    amendment_months.append({
+                        'year': int(parts[2]), 'month': int(parts[3])
+                    })
+                except ValueError:
+                    pass
         db.close()
     return {
         'pending_count': pending,
         'pending_changes_count': pending_changes,
+        'amendment_months': amendment_months,
         'MONTH_NAMES': MONTH_NAMES,
         'is_superadmin': role == 'superadmin',
     }
@@ -695,8 +709,10 @@ def approve_change_request(req_id):
         return redirect(url_for('admin_change_requests'))
 
     changes = _json.loads(req['changes_json'] or '[]')
+    affected_months = set()
     for ch in changes:
         d = date.fromisoformat(ch['date'])
+        affected_months.add((d.year, d.month))
         to_code = ch['to_code'] or ''
         leave_st = 'approved' if to_code == '0' else 'normal'
         if to_code == 'Б':
@@ -720,6 +736,16 @@ def approve_change_request(req_id):
                 ON CONFLICT(employee_id, year, month, day)
                 DO UPDATE SET code=excluded.code, leave_status=excluded.leave_status, plan_code=excluded.plan_code
             ''', (req['employee_id'], d.year, d.month, d.day, to_code, leave_st, pc))
+
+    # Ако одобреният месец е заключен → маркирай, че трябва официална промяна
+    for yr, mo in affected_months:
+        lock_key = f'sched_locked_{yr}_{mo}'
+        if db.execute("SELECT value FROM app_settings WHERE key=?", (lock_key,)).fetchone():
+            amend_key = f'amendment_needed_{yr}_{mo}'
+            db.execute(
+                "INSERT OR REPLACE INTO app_settings (key,value) VALUES (?,?)",
+                (amend_key, '1')
+            )
 
     db.execute('''
         UPDATE schedule_change_requests
@@ -768,6 +794,14 @@ def admin_schedule(year=None, month=None):
     settings = db.execute(
         'SELECT * FROM month_settings WHERE year=? AND month=?', (year, month)
     ).fetchone()
+    is_locked = bool(db.execute(
+        "SELECT value FROM app_settings WHERE key=?",
+        (f'sched_locked_{year}_{month}',)
+    ).fetchone())
+    amendment_needed = bool(db.execute(
+        "SELECT value FROM app_settings WHERE key=?",
+        (f'amendment_needed_{year}_{month}',)
+    ).fetchone())
     db.close()
 
     schedule = {}
@@ -785,6 +819,7 @@ def admin_schedule(year=None, month=None):
         day_info=day_info, DAY_NAMES=DAY_NAMES, settings=settings,
         today=today, hours=hours, target_hours=target_hours,
         CODE_LABELS=CODE_LABELS, SMYANA_OPTIONS=SMYANA_OPTIONS,
+        is_locked=is_locked, amendment_needed=amendment_needed,
         py=py, pm=pm, ny=ny, nm=nm
     )
 
@@ -864,6 +899,59 @@ def admin_schedule_hours():
     db.commit()
     db.close()
     flash('Часовете за месеца са запазени.', 'success')
+    return redirect(url_for('admin_schedule', year=year, month=month))
+
+
+@app.route('/admin/schedule/<int:year>/<int:month>/lock', methods=['POST'])
+@admin_required
+def lock_schedule(year, month):
+    db = get_db()
+    lock_key = f'sched_locked_{year}_{month}'
+    existing = db.execute(
+        "SELECT value FROM app_settings WHERE key=?", (lock_key,)
+    ).fetchone()
+    if existing:
+        db.execute("DELETE FROM app_settings WHERE key=?", (lock_key,))
+        db.commit()
+        db.close()
+        flash(f'Графикът за {MONTH_NAMES[month]} {year} е отключен.', 'info')
+    else:
+        # Заключване: запомни текущите кодове като plan_code (базов одобрен график)
+        db.execute(
+            """UPDATE schedule_entries SET plan_code = code
+               WHERE year=? AND month=? AND code IN ('1','2','8','0','Н','П')""",
+            (year, month)
+        )
+        db.execute(
+            "INSERT OR REPLACE INTO app_settings (key,value) VALUES (?,?)",
+            (lock_key, '1')
+        )
+        db.commit()
+        db.close()
+        flash(
+            f'Графикът за {MONTH_NAMES[month]} {year} е заключен. '
+            f'Текущото разпределение е запазено като базов план.',
+            'success'
+        )
+    return redirect(url_for('admin_schedule', year=year, month=month))
+
+
+@app.route('/admin/schedule/amendment-done', methods=['POST'])
+@admin_required
+def amendment_done():
+    year = int(request.form['year'])
+    month = int(request.form['month'])
+    db = get_db()
+    db.execute(
+        "DELETE FROM app_settings WHERE key=?",
+        (f'amendment_needed_{year}_{month}',)
+    )
+    db.commit()
+    db.close()
+    flash(
+        f'Официалната промяна на графика за {MONTH_NAMES[month]} {year} е отбелязана като изпратена.',
+        'success'
+    )
     return redirect(url_for('admin_schedule', year=year, month=month))
 
 

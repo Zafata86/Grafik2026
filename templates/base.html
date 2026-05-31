@@ -49,11 +49,21 @@
             {% if total_pending > 0 %}
             <span class="badge bg-danger rounded-pill">{{ total_pending }}</span>
             {% endif %}
+            {% if amendment_months %}
+            <span class="badge bg-warning text-dark rounded-pill" title="Нужна официална промяна на график">
+              <i class="bi bi-exclamation-triangle-fill"></i> {{ amendment_months|length }}
+            </span>
+            {% endif %}
           </a>
           <ul class="dropdown-menu shadow">
             <li>
               <a class="dropdown-item" href="/admin/schedule">
                 <i class="bi bi-pencil-square text-primary"></i> Редактиране на График
+                {% if amendment_months %}
+                <span class="badge bg-warning text-dark">
+                  <i class="bi bi-exclamation-triangle-fill"></i>
+                </span>
+                {% endif %}
               </a>
             </li>
             <li>
@@ -113,6 +123,25 @@
     {% endfor %}
   {% endif %}
   {% endwith %}
+
+  {% if session.role in ('admin', 'superadmin') and amendment_months %}
+  {% for am in amendment_months %}
+  <div class="alert alert-warning alert-dismissible d-flex align-items-center gap-2 py-2 mb-2" role="alert">
+    <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+    <div class="flex-grow-1">
+      <strong>Нужна е официална Промяна на График</strong> за
+      <a href="/admin/schedule/{{ am.year }}/{{ am.month }}" class="alert-link fw-bold">
+        {{ MONTH_NAMES[am.month] }} {{ am.year }}
+      </a>
+      — одобрени са промени след заключването.
+    </div>
+    <a href="/admin/schedule/{{ am.year }}/{{ am.month }}" class="btn btn-sm btn-warning flex-shrink-0">
+      <i class="bi bi-arrow-right-circle"></i> Отвори
+    </a>
+    <button type="button" class="btn-close flex-shrink-0" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+  {% endif %}
 
   {% block content %}{% endblock %}
 </div>
