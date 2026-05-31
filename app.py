@@ -72,7 +72,7 @@ def calc_hours(schedule_for_emp):
         elif code == '2': total += 13.143
         elif code == '8': total += 8
         elif code == '0': total += 8
-        elif code == 'Б': total += 12
+        elif code == 'Б': total += 0
         elif code == 'Н': total += 8
     return round(total, 1)
 
