@@ -164,11 +164,37 @@ def ensure_schema():
         db.execute('ALTER TABLE schedule_entries ADD COLUMN original_code TEXT DEFAULT NULL')
     except Exception:
         pass
-    # Изчисти грешно авто-попълнен original_code (от стара миграция)
+    # Изчисти грешно авто-попълнен original_code (от стара миграция по ±7 дни)
     db.execute(
         "UPDATE schedule_entries SET original_code=NULL "
         "WHERE code='Б' AND original_code IN ('1','2','8')"
     )
+    # Попълни original_code за Б записи като сравни с колега от същата смяна
+    already = db.execute(
+        "SELECT value FROM app_settings WHERE key='migration_sick_orig_done'"
+    ).fetchone()
+    if not already:
+        db.execute("""
+            UPDATE schedule_entries
+            SET original_code = (
+                SELECT other.code
+                FROM schedule_entries other
+                JOIN users u_sick  ON schedule_entries.employee_id = u_sick.id
+                JOIN users u_other ON other.employee_id = u_other.id
+                WHERE other.employee_id != schedule_entries.employee_id
+                  AND UPPER(u_other.smyana) = UPPER(u_sick.smyana)
+                  AND other.year  = schedule_entries.year
+                  AND other.month = schedule_entries.month
+                  AND other.day   = schedule_entries.day
+                  AND other.code IN ('1','2','8')
+                LIMIT 1
+            )
+            WHERE code = 'Б'
+              AND (original_code IS NULL OR original_code = '')
+        """)
+        db.execute(
+            "INSERT OR REPLACE INTO app_settings (key,value) VALUES ('migration_sick_orig_done','1')"
+        )
 
 
     db.execute('''CREATE TABLE IF NOT EXISTS schedule_change_requests (
