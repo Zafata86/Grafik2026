@@ -41,21 +41,12 @@
 }
 
 .schedule-table .sticky-no {
-  position: sticky;
-  left: 0;
-  z-index: 6;
   min-width: 45px;
   background: #212529;
   color: #fff;
 }
-.schedule-table thead .sticky-no {
-  z-index: 10;
-}
 
 .schedule-table .sticky-name {
-  position: sticky;
-  left: 45px;
-  z-index: 6;
   min-width: 155px;
   max-width: 180px;
   background: #212529;
@@ -63,9 +54,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.schedule-table thead .sticky-name {
-  z-index: 10;
 }
 
 .schedule-table tbody .sticky-no {
@@ -177,19 +165,39 @@
   font-weight: 700;
 }
 
+/* ── Компактна мобилна таблица (дашборд) ──────── */
+.mobile-sched-row td.mc {
+  width: 13px;
+  min-width: 13px;
+  max-width: 13px;
+  padding: 2px 0 !important;
+  font-size: 0.58rem;
+  text-align: center;
+  line-height: 1;
+  vertical-align: middle;
+}
+.mobile-sched-row td.mc-today {
+  outline: 2px solid #0d6efd;
+  outline-offset: -2px;
+  z-index: 1;
+  position: relative;
+}
+.mobile-emp-name {
+  min-width: 72px;
+  max-width: 90px;
+  font-size: 0.65rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 2px 4px !important;
+  font-weight: 600;
+}
+
 /* ── Мобилни подобрения ───────────────────────── */
 @media (max-width: 767px) {
   .schedule-wrapper {
     max-height: none;
     -webkit-overflow-scrolling: touch;
-  }
-  .schedule-wrapper::after {
-    content: '← Плъзни за повече →';
-    display: block;
-    text-align: center;
-    font-size: 0.7rem;
-    color: #adb5bd;
-    padding: 4px 0;
   }
   .sched-cell, .sched-editable {
     min-width: 26px;

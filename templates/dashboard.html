@@ -2,6 +2,140 @@
 {% block title %}График {{ month_name }} {{ year }}{% endblock %}
 
 {% block content %}
+
+{# ══════════════════════ МОБИЛЕН ИЗГЛЕД (< md) ══════════════════════ #}
+{% set today_day = today.day if today.year == year and today.month == month else 0 %}
+<div class="d-md-none">
+
+  {# Навигация #}
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <a href="/dashboard/{{ py }}/{{ pm }}" class="btn btn-outline-primary px-3 py-2">
+      <i class="bi bi-chevron-left fs-5"></i>
+    </a>
+    <div class="text-center">
+      <div class="fw-bold fs-5">{{ month_name }} {{ year }}</div>
+      <div class="text-muted small"><i class="bi bi-table text-primary"></i> Пълен График</div>
+    </div>
+    <a href="/dashboard/{{ ny }}/{{ nm }}" class="btn btn-outline-primary px-3 py-2">
+      <i class="bi bi-chevron-right fs-5"></i>
+    </a>
+  </div>
+
+  {# Карта „Днес" #}
+  {% if today_day %}
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-primary text-white py-2 small fw-semibold">
+      <i class="bi bi-calendar-day"></i> Днес – {{ today_day }} {{ month_name }} {{ year }}
+    </div>
+    <div class="card-body py-2 px-3">
+      {% for shift_code, shift_label, shift_cls in [('1','Диспечерска','cell-1'),('2','Нощна','cell-2'),('8','Дневна','cell-8')] %}
+      {% set workers = namespace(names=[]) %}
+      {% for emp in employees %}
+        {% set e = schedule.get(emp.id, {}).get(today_day) %}
+        {% if e and e.code == shift_code %}
+          {% set workers.names = workers.names + [emp.name.split()[0]] %}
+        {% endif %}
+      {% endfor %}
+      {% if workers.names %}
+      <div class="d-flex flex-wrap align-items-center gap-1 mb-1">
+        <span class="legend-item {{ shift_cls }} me-1">{{ shift_label }}</span>
+        {% for w in workers.names %}
+        <span class="badge bg-secondary fw-normal">{{ w }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endfor %}
+
+      {% set off_workers = namespace(names=[]) %}
+      {% for emp in employees %}
+        {% set e = schedule.get(emp.id, {}).get(today_day) %}
+        {% if e and e.code == '0' %}{% set off_workers.names = off_workers.names + [emp.name.split()[0]] %}{% endif %}
+      {% endfor %}
+      {% if off_workers.names %}
+      <div class="d-flex flex-wrap align-items-center gap-1 mb-1">
+        <span class="legend-item cell-approved me-1">Отпуска</span>
+        {% for w in off_workers.names %}
+        <span class="badge bg-secondary fw-normal">{{ w }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# Легенда #}
+  <div class="d-flex flex-wrap gap-1 mb-2">
+    <span class="legend-item cell-1">1</span>
+    <span class="legend-item cell-2">2</span>
+    <span class="legend-item cell-8">8</span>
+    <span class="legend-item cell-approved">0</span>
+    <span class="legend-item cell-sick">Б</span>
+    <span class="legend-item cell-n">Н</span>
+    <span class="legend-item cell-weekend-bg small text-muted">Почивен</span>
+  </div>
+
+  {# Компактна таблица #}
+  <div class="table-responsive">
+    <table class="table table-bordered mb-0" style="font-size:0.62rem; border-collapse:collapse">
+      <thead class="table-dark">
+        <tr>
+          <th class="mobile-emp-name">Служител</th>
+          {% for d, wd in day_info %}
+          <th class="text-center p-0 {% if wd >= 5 %}th-weekend{% endif %}"
+              style="width:13px; min-width:13px; font-size:0.58rem; line-height:1.1">
+            {{ d }}
+          </th>
+          {% endfor %}
+          <th class="text-center" style="min-width:22px; font-size:0.6rem">Ч</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for emp in employees %}
+        {% set emp_sched = schedule.get(emp.id, {}) %}
+        {% set ah = hours.get(emp.id, 0) %}
+        {% set th = target_hours(emp.smyana, settings) %}
+        <tr class="mobile-sched-row">
+          <td class="mobile-emp-name sm-{{ emp.smyana|upper }}">
+            {{ emp.name.split()[0] }}
+            {% if emp.name.split()|length > 1 %}{{ emp.name.split()[1][0] }}.{% endif %}
+          </td>
+          {% for day, wday in day_info %}
+          {% set e = emp_sched.get(day) %}
+          {% set code = (e.code if e else '') or '' %}
+          {% set status = (e.leave_status if e else '') or 'normal' %}
+          {% if code == '0' and status == 'planned' %}{% set cls = 'cell-planned' %}
+          {% elif code == '0' %}{% set cls = 'cell-approved' %}
+          {% elif code == 'Б' %}{% set cls = 'cell-sick' %}
+          {% elif code == '1' %}{% set cls = 'cell-1' %}
+          {% elif code == '2' %}{% set cls = 'cell-2' %}
+          {% elif code == '8' %}{% set cls = 'cell-8' %}
+          {% elif code == 'Н' %}{% set cls = 'cell-n' %}
+          {% elif code == 'П' %}{% set cls = 'cell-p' %}
+          {% elif wday >= 5 %}{% set cls = 'cell-weekend-bg' %}
+          {% else %}{% set cls = '' %}
+          {% endif %}
+          <td class="mc {{ cls }} {% if day == today_day %}mc-today{% endif %}">{{ code }}</td>
+          {% endfor %}
+          <td class="text-center fw-bold {% if th and ah < th %}text-danger{% elif th %}text-success{% endif %}"
+              style="font-size:0.6rem; min-width:22px">{{ ah }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if session.role in ('admin', 'superadmin') %}
+  <div class="d-grid mt-3">
+    <a href="/admin/schedule/{{ year }}/{{ month }}" class="btn btn-warning">
+      <i class="bi bi-pencil-square"></i> Редактирай График
+    </a>
+  </div>
+  {% endif %}
+
+</div>{# end d-md-none #}
+
+{# ══════════════════════ ДЕСКТОП ИЗГЛЕД (≥ md) ══════════════════════ #}
+<div class="d-none d-md-block">
 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
   <h5 class="mb-0 me-2">
     <i class="bi bi-table text-primary"></i>
@@ -102,4 +236,5 @@
     </tbody>
   </table>
 </div>
+</div>{# end d-none d-md-block #}
 {% endblock %}
