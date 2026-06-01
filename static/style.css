@@ -221,3 +221,8 @@
 }
 .sticky-name { cursor: pointer; }
 .sticky-name:hover { text-decoration: underline; }
+.schedule-table tbody tr.row-highlight .mobile-emp-name {
+  background: #fff3cd !important;
+  font-weight: 700 !important;
+  color: #664d03 !important;
+}

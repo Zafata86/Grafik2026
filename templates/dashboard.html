@@ -76,7 +76,7 @@
 
   {# Компактна таблица #}
   <div class="table-responsive">
-    <table class="table table-bordered mb-0" style="font-size:0.62rem; border-collapse:collapse">
+    <table class="table table-bordered mb-0 schedule-table" style="font-size:0.62rem; border-collapse:collapse; min-width:auto">
       <thead class="table-dark">
         <tr>
           <th class="mobile-emp-name">Служител</th>
@@ -95,7 +95,7 @@
         {% set ah = hours.get(emp.id, 0) %}
         {% set th = target_hours(emp.smyana, settings) %}
         <tr class="mobile-sched-row">
-          <td class="mobile-emp-name sm-{{ emp.smyana|upper }}">
+          <td class="mobile-emp-name sticky-name sm-{{ emp.smyana|upper }}">
             {{ emp.name.split()[0] }}
             {% if emp.name.split()|length > 1 %}{{ emp.name.split()[1][0] }}.{% endif %}
           </td>
