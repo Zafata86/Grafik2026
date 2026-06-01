@@ -24,12 +24,10 @@
 /* ── Обща таблица за графика ─────────────────── */
 .schedule-wrapper {
   overflow-x: auto;
-  max-height: 78vh;
-  overflow-y: auto;
 }
 
 .schedule-table {
-  min-width: 900px;
+  width: 100%;
   border-collapse: collapse;
   font-size: 0.78rem;
 }
